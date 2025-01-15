@@ -1,23 +1,25 @@
 #!/bin/bash
 #
-#SBATCH -J bamshee_ces
+#SBATCH -J varwolf_ces
 #SBATCH --output /lustre/imgge/RFZO/logs/%x_%A.out
 #SBATCH --nodes 1
-#SBATCH --cpus-per-task 32
-#SBATCH --mem 128G
-#SBATCH --time 1-00:00:00
+#SBATCH --cpus-per-task 100
+#SBATCH --mem 256G
+#SBATCH --time 3-00:00:00
 
 module load fastp
 module load bwa
 module load samtools
 module load gatk
+module load miniconda3
 
 set -eux
 
 ### VARIABLES ###
 
 # RUN VARIABLES
-SAMPLE=$1
+readarray -t SAMPLE < $1
+COHORT=$2
 WDIR="/lustre/imgge/RFZO"
 THREADS=${SLURM_CPUS_PER_TASK}
 
@@ -26,34 +28,34 @@ REF="${WDIR}/refs/hg38.fasta"
 DBSNP="/lustre/imgge/db/hg38/hg38.dbsnp155.vcf.gz"
 INTERVALS="${WDIR}/refs/TSOne_Expanded_Final_TargetedRegions_v2_hg38.bed"
 
-# READ GROUP VARIABLES
-FLOWCELL=$(zcat "${WDIR}"/fastq/"${SAMPLE}"*L001_R1*.fastq.gz | head -1 | cut -d ":" -f 3)
-PLATFORM="ILLUMINA"
-LIBRARY=$(zcat ${WDIR}/fastq/${SAMPLE}*L001_R1*.fastq.gz | head -1 | cut -d ":" -f 2 | sed 's/^/Lib/g')
-
-# LANES
-LANE=4
-LANES=$(seq 1 $LANE)
+mkdir -p output/${COHORT}/bams output/${COHORT}/vcfs
 
 ### START ###
 
-for i in $LANES
+for i in $(seq 0 $((${#SAMPLE[@]} -1)))
 do
-    fastp \
-		-w $((THREADS / 4)) \
-	    -i ${WDIR}/fastq/${SAMPLE}*L00${i}_R1*.fastq.gz \
-        -I ${WDIR}/fastq/${SAMPLE}*L00${i}_R2*.fastq.gz \
-        --stdout \
-    | bwa mem \
-		-t ${THREADS} \
-		-M -p -R "@RG\tID:${FLOWCELL}.LANE${i}\tPL:${PLATFORM}\tLB:${LIBRARY}\tSM:${SAMPLE}" \
-        ${REF} - \
-    | samtools sort \
-		-@ $((THREADS / 4)) \
-        > bams/${SAMPLE}_L${i}.bam
+    for LANE in {1..4}
+    do
+        FLOWCELL=$(zcat "${WDIR}"/fastq/${SAMPLE[${i}]}*L001_R1*.fastq.gz | head -1 | cut -d ":" -f 3)
+        LIBRARY=$(zcat ${WDIR}/fastq/${SAMPLE[${i}]}*L001_R1*.fastq.gz | head -1 | cut -d ":" -f 2 | sed 's/^/Lib/g')
+        fastp \
+		    -w 1 \
+	        -i ${WDIR}/fastq/${SAMPLE[${i}]}*L00${LANE}_R1*.fastq.gz \
+            -I ${WDIR}/fastq/${SAMPLE[${i}]}*L00${LANE}_R2*.fastq.gz \
+            --stdout \
+        | bwa mem \
+		    -t 2 \
+		    -M -p -R "@RG\tID:${FLOWCELL}.LANE${LANE}\tPL:ILLUMINA\tLB:${LIBRARY}\tSM:${SAMPLE[${i}]}" \
+            ${REF} - \
+        | samtools sort \
+		    -@ 1 -n \
+            > ${WDIR}/output/${COHORT}/bams/${SAMPLE[${i}]}_L${LANE}.bam
+    done &
 done
 
-echo "Finished aligning ${SAMPLE}"
+wait
+
+echo "Finished aligning samples"
 
 gatk MarkDuplicatesSpark \
 	-R ${REF} \
