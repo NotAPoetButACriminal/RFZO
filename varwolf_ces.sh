@@ -223,8 +223,8 @@ do
     $MODELS \
     $CALLS \
     --sample-index ${i} \
-    --output-genotyped-intervals ${WDIR}/output/vcfs/${SAMPLES[${i}]}_intervals.cnv.vcf.gz \
-    --output-genotyped-segments ${WDIR}/output/vcfs/${SAMPLES[${i}]}_raw.cnv.vcf.gz \
+    --output-genotyped-intervals ${WDIR}/output/${COHORT}/vcfs/${SAMPLES[${i}]}_intervals.cnv.vcf.gz \
+    --output-genotyped-segments ${WDIR}/output/${COHORT}/vcfs/${SAMPLES[${i}]}_raw.cnv.vcf.gz \
     --output-denoised-copy-ratios ${WDIR}/output/${COHORT}/${SAMPLES[${i}]}_denoised_copy_ratios.tsv \
     --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls/ \
     --allosomal-contig chrX --allosomal-contig chrY \
@@ -238,10 +238,10 @@ echo "Finished calling CNVs per sample"
 for SAMPLE in "${SAMPLES[@]}"
 do
   gatk VariantFiltration \
-    -V ${WDIR}/output/vcfs/${SAMPLES[${i}]}_raw.cnv.vcf.gz \
+    -V ${WDIR}/output/${COHORT}/vcfs/${SAMPLES[${i}]}_raw.cnv.vcf.gz \
     -filter "QUAL < 30.0" \
     --filter-name "CNVQUAL" \
-    -O ${WDIR}/output/vcfs/${SAMPLES[${i}]}_filtered.cnv.vcf.gz &
+    -O ${WDIR}/output/${COHORT}/vcfs/${SAMPLES[${i}]}_filtered.cnv.vcf.gz &
 done
 
 for SAMPLE in "${SAMPLES[@]}"
@@ -253,4 +253,8 @@ do
     tabix ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.cnv.vcf.gz
 done
 
-rm ${WDIR}/bams/*_* ${WDIR}/vcfs/*_*
+echo "Done with CNVs!"
+
+rm ${WDIR}/output/${COHORT}/bams/*_* ${WDIR}/output/${COHORT}/vcfs/*_*
+
+echo "All Done!"
