@@ -202,7 +202,7 @@ do
     $HDF5S \
     -O ${WDIR}/output/${COHORT}/gcnvcaller_scatters \
     --output-prefix scatter_${SCATTER} \
-    --contig-ploidy-calls ${WDIR}/counts/${COHORT}/ploidy-calls \
+    --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls \
     --verbosity DEBUG &
 done
 
