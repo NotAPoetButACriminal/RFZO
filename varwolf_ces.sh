@@ -4,7 +4,7 @@
 #SBATCH --output /lustre/imgge/RFZO/logs/%x_%A.out
 #SBATCH --nodes 1
 #SBATCH --cpus-per-task 100
-#SBATCH --mem 256Gsq
+#SBATCH --mem 256G
 #SBATCH --time 3-00:00:00
 
 module load fastp
