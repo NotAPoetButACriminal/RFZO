@@ -42,7 +42,7 @@ do
         -R ${REF} \
         -L ${WDIR}/refs/read_counts_wes.interval_list \
         -imr OVERLAPPING_ONLY \
-        -I ${WDIR}/output/${COHORT}/bams/${SAMPLE}.bam \
+        -I ${WDIR}/bams/${SAMPLE}.bam \
         -O ${WDIR}/output/${COHORT}/counts/${SAMPLE}.hdf5 &
 done
 
