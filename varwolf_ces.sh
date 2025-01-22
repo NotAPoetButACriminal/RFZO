@@ -225,7 +225,7 @@ do
     --sample-index ${i} \
     --output-genotyped-intervals ${WDIR}/output/${COHORT}/vcfs/${SAMPLES[${i}]}_intervals.cnv.vcf.gz \
     --output-genotyped-segments ${WDIR}/output/${COHORT}/vcfs/${SAMPLES[${i}]}_raw.cnv.vcf.gz \
-    --output-denoised-copy-ratios ${WDIR}/output/${COHORT}/${SAMPLES[${i}]}_denoised_copy_ratios.tsv \
+    --output-denoised-copy-ratios ${WDIR}/output/${COHORT}/gcnvcaller_scatters/${SAMPLES[${i}]}_denoised_copy_ratios.tsv \
     --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls/ \
     --allosomal-contig chrX --allosomal-contig chrY \
     --sequence-dictionary ${WDIR}/refs/hg38.dict &
