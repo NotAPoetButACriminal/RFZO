@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-#SBATCH -J copycat
-#SBATCH --output /lustre/imgge/PharmGenHub/logs/%x_%A.out
+#SBATCH -J copycat_wes
+#SBATCH --output /lustre/imgge/RFZO/logs/%x_%A.out
 #SBATCH --nodes 1
 #SBATCH --cpus-per-task 128
 #SBATCH --mem 256G
@@ -13,104 +13,141 @@ module load miniconda3
 
 set -ex
 
-SAMPLES=$(cat $1)
+### VARIABLES ###
+
+# RUN VARIABLES
+readarray -t SAMPLES < $1
 COHORT=$2
-WDIR="/lustre/imgge/PharmGenHub"
-REF=$WDIR/refs/hg38.fasta
-DICT=$WDIR/refs/hg38.dict
+WDIR="/lustre/imgge/RFZO"
+THREADS=${SLURM_CPUS_PER_TASK}
+
+# REFERENCE VARIABLES
+REF="${WDIR}/refs/hg38.fasta"
+DBSNP="/lustre/imgge/db/hg38/hg38.dbsnp155.vcf.gz"
+INTERVALS="${WDIR}/refs/hg38_Twist_ILMN_Exome_2.0_Plus_Panel_Combined_Mito.bed"
+
+mkdir -p \
+    output/${COHORT}/bams/metrics \
+    output/${COHORT}/vcfs \
+    output/${COHORT}/counts
+
+### START ###
 
 eval "$(conda shell.bash hook)"
 conda activate gatk
 
-INPUTHDF5S=$(
-  for i in $SAMPLES
-  do
-    echo -n "-I ${WDIR}/counts/${i}.hdf5 "
-  done
-)
+for SAMPLE in "${SAMPLES[@]}"
+do
+    gatk CollectReadCounts \
+        -R ${REF} \
+        -L ${WDIR}/refs/read_counts_wes.interval_list \
+        -imr OVERLAPPING_ONLY \
+        -I ${WDIR}/output/${COHORT}/bams/${SAMPLE}.bam \
+        -O ${WDIR}/output/${COHORT}/counts/${SAMPLE}.hdf5 &
+done
 
-mkdir -p counts/${COHORT}/
+wait
+
+echo "Finished counting reads!"
+
+HDF5S=$(ls ${WDIR}/output/${COHORT}/counts/*.hdf5 | sed -e 's/^/ -I /g')
 
 gatk FilterIntervals \
   -L ${WDIR}/refs/read_counts_wes.interval_list \
   --annotated-intervals ${WDIR}/refs/read_counts_wes_annotated.interval_list \
   -imr OVERLAPPING_ONLY \
-  $INPUTHDF5S \
-  -O ${WDIR}/counts/${COHORT}/${COHORT}_filtered.interval_list \
+  $HDF5S \
+  -O ${WDIR}/output/${COHORT}/filtered.interval_list \
   --low-count-filter-percentage-of-samples 65
 
 gatk IntervalListTools \
-  -I ${WDIR}/counts/${COHORT}/${COHORT}_filtered.interval_list \
-  -O ${WDIR}/counts/${COHORT}/${COHORT}_scattered_intervals \
+  -I ${WDIR}/output/${COHORT}/filtered.interval_list  \
+  -O ${WDIR}/output/${COHORT}/interval_scatters \
   --SUBDIVISION_MODE INTERVAL_COUNT \
   --SCATTER_CONTENT 13000
 
+SCATTERS=$(basename ${WDIR}/output/${COHORT}/interval_scatters/temp_0001_of_* \
+  | cut -d "_" -f 4)
+
+echo "Finished scattering intervals!"
+
 gatk DetermineGermlineContigPloidy \
-  -L ${WDIR}/counts/${COHORT}/${COHORT}_filtered.interval_list \
+  -L ${WDIR}/output/${COHORT}/filtered.interval_list \
   -imr OVERLAPPING_ONLY \
-  $INPUTHDF5S \
-  -O ${WDIR}/counts/${COHORT} \
-  --output-prefix ${COHORT}_ploidy \
+  $HDF5S \
+  -O ${WDIR}/output/${COHORT}/ \
+  --output-prefix ploidy \
   --contig-ploidy-priors ${WDIR}/refs/contig_ploidy_priors.tsv
 
-for SCATTER in {0001..0020}
+echo "Finished determining ploidy!"
+
+for SCATTER in $(seq -w 0001 00${SCATTERS})
 do
   gatk GermlineCNVCaller \
     --run-mode COHORT \
-    -L ${WDIR}/counts/${COHORT}/${COHORT}_scattered_intervals/temp_${SCATTER}_of_20/scattered.interval_list \
+    -L ${WDIR}/output/${COHORT}/interval_scatters/temp_${SCATTER}_of_${SCATTERS}/scattered.interval_list \
     --annotated-intervals ${WDIR}/refs/read_counts_wes_annotated.interval_list \
     -imr OVERLAPPING_ONLY \
-    $INPUTHDF5S \
-    -O ${WDIR}/counts/${COHORT}/${COHORT}_scatters/ \
-    --output-prefix ${COHORT}_scatter_${SCATTER} \
-    --contig-ploidy-calls ${WDIR}/counts/${COHORT}/${COHORT}_ploidy-calls \
+    $HDF5S \
+    -O ${WDIR}/output/${COHORT}/gcnvcaller_scatters \
+    --output-prefix scatter_${SCATTER} \
+    --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls \
     --verbosity DEBUG &
 done
 
 wait
 
-MODELS=$(ls -p ${WDIR}/counts/${COHORT}/${COHORT}_scatters/ \
-  | grep model \
-  | sed "s#^#--model-shard-path ${WDIR}/counts/${COHORT}/${COHORT}_scatters/#g")
-CALLS=$(ls -p ${WDIR}/counts/${COHORT}/${COHORT}_scatters/ \
-  | grep calls \
-  | sed "s#^#--calls-shard-path ${WDIR}/counts/${COHORT}/${COHORT}_scatters/#g")
+echo "Finished calling CNVs per scatter"
 
-for i in $(seq 0 $(( $(echo $SAMPLES | wc -w ) - 1 )))
+MODELS=$(ls -p ${WDIR}/output/${COHORT}/gcnvcaller_scatters/ \
+  | grep model \
+  | sed "s#^#--model-shard-path ${WDIR}/output/${COHORT}/gcnvcaller_scatters/#g")
+CALLS=$(ls -p ${WDIR}/output/${COHORT}/gcnvcaller_scatters/ \
+  | grep calls \
+  | sed "s#^#--calls-shard-path ${WDIR}/output/${COHORT}/gcnvcaller_scatters/#g")
+
+for i in $(seq 0 $((${#SAMPLES[@]} -1)))
 do 
-  SAMPLE_PREFIX=$(cat ${WDIR}/counts/${COHORT}/${COHORT}_scatters/${COHORT}_scatter_0001-calls/SAMPLE_${i}/sample_name.txt)
   gatk PostprocessGermlineCNVCalls \
     $MODELS \
     $CALLS \
     --sample-index ${i} \
-    --output-genotyped-intervals ${WDIR}/vcfs/${SAMPLE_PREFIX}_intervals.cnv.vcf.gz \
-    --output-genotyped-segments ${WDIR}/vcfs/${SAMPLE_PREFIX}_raw.cnv.vcf.gz \
-    --output-denoised-copy-ratios ${WDIR}/counts/${COHORT}/${SAMPLE_PREFIX}_denoised_copy_ratios.tsv \
-    --contig-ploidy-calls ${WDIR}/counts/${COHORT}/${COHORT}_ploidy-calls/ \
+    --output-genotyped-intervals ${WDIR}/output/${COHORT}/vcfs/${SAMPLES[${i}]}_intervals.cnv.vcf.gz \
+    --output-genotyped-segments ${WDIR}/output/${COHORT}/vcfs/${SAMPLES[${i}]}_raw.cnv.vcf.gz \
+    --output-denoised-copy-ratios ${WDIR}/output/${COHORT}/${SAMPLES[${i}]}_denoised_copy_ratios.tsv \
+    --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls/ \
     --allosomal-contig chrX --allosomal-contig chrY \
-    --sequence-dictionary $DICT &
+    --sequence-dictionary ${WDIR}/refs/hg38.dict &
 done
 
 wait
 
-for SAMPLE in $SAMPLES
+echo "Finished calling CNVs per sample"
+
+for SAMPLE in "${SAMPLES[@]}"
 do
   gatk VariantFiltration \
-    -V vcfs/${SAMPLE}_raw.cnv.vcf.gz \
+    -V ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_raw.cnv.vcf.gz \
     -filter "QUAL < 30.0" \
     --filter-name "CNVQUAL" \
-    -O vcfs/${SAMPLE}_filtered.cnv.vcf.gz &
+    -O ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz &
 done
 
 wait
 
-for SAMPLE in $SAMPLES
+echo "Finished filtering CNV calls"
+
+for SAMPLE in "${SAMPLES[@]}"
 do
-zgrep -P -v "CNVQUAL|N\t\." vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
-  | sed -e 's/##source=VariantFiltration/##source=VariantFiltration\n##reference=hg38.fasta/g' \
+    zgrep -P -v "CNVQUAL|N\t\." ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
+    | sed -e 's/##source=VariantFiltration/##source=VariantFiltration\n##reference=hg38.fasta/g' \
         -e 's/\tEND/\tSVTYPE=CNV;END/g' \
-  | bgzip -o vcfs/${SAMPLE}.cnv.vcf.gz \
-  && tabix vcfs/${SAMPLE}.cnv.vcf.gz
+    | bgzip -o ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.cnv.vcf.gz
+    tabix ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.cnv.vcf.gz
 done
 
-echo "All done!"
+echo "Done with CNVs!"
+
+# rm ${WDIR}/output/${COHORT}/bams/*_* ${WDIR}/output/${COHORT}/vcfs/*_*
+
+echo "All Done!"

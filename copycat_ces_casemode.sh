@@ -3,7 +3,7 @@
 #SBATCH -J copycat
 #SBATCH --output /lustre/imgge/RFZO/logs/%x_%A.out
 #SBATCH --nodes 1
-#SBATCH --cpus-per-task 128
+#SBATCH --cpus-per-task 80
 #SBATCH --mem 256G
 #SBATCH --time 3-00:00:00
 
@@ -30,7 +30,7 @@ gatk CollectReadCounts \
 mkdir -p counts/${SAMPLE}/
 
 gatk DetermineGermlineContigPloidy \
-  --model ${WDIR}/counts/TSO20240108/ploidy/ploidy-model/ \
+  --model ${WDIR}/output/TSO250108/ploidy-model/ \
   -I ${WDIR}/counts/${SAMPLE}.hdf5 \
   -O ${WDIR}/counts/${SAMPLE} \
   --output-prefix ${SAMPLE}_ploidy
@@ -39,7 +39,7 @@ for SCATTER in {0001..0019}
 do
   gatk GermlineCNVCaller \
     --run-mode CASE  \
-    --model ${WDIR}/counts/TSO20240108/gcnvcaller_scatters/scatter_${SCATTER}-model \
+    --model ${WDIR}/output/TSO250108/gcnvcaller_scatters/scatter_${SCATTER}-model \
     -I ${WDIR}/counts/${SAMPLE}.hdf5 \
     -O ${WDIR}/counts/${SAMPLE}/${SAMPLE}_scatters/ \
     --output-prefix ${SAMPLE}_scatter_${SCATTER} \
@@ -49,9 +49,9 @@ done
 
 wait
 
-MODELS=$(ls -p ${WDIR}/counts/${SAMPLE}/${SAMPLE}_scatters/ \
+MODELS=$(ls -p ${WDIR}/output/TSO250108/gcnvcaller_scatters/ \
   | grep model \
-  | sed "s#^#--model-shard-path ${WDIR}/counts/${SAMPLE}/${SAMPLE}_scatters/#g")
+  | sed "s#^#--model-shard-path ${WDIR}/output/TSO250108/gcnvcaller_scatters/#g")
 CALLS=$(ls -p ${WDIR}/counts/${SAMPLE}/${SAMPLE}_scatters/ \
   | grep calls \
   | sed "s#^#--calls-shard-path ${WDIR}/counts/${SAMPLE}/${SAMPLE}_scatters/#g")
@@ -73,10 +73,10 @@ gatk VariantFiltration \
   --filter-name "CNVQUAL" \
   -O ${WDIR}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz
 
-zcat ${WDIR}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
-  | sed -e 's/##source=VariantFiltration/##source=VariantFiltration\n##reference=hg38.fasta/g' \
-  -e 's/\tEND/\tSVTYPE=CNV;END/g' \
-  | bgzip -o vcfs/${SAMPLE}.cnv.vcf.gz \
-  && tabix vcfs/${SAMPLE}.cnv.vcf.gz
+zgrep -P -v "CNVQUAL|N\t\." vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
+   | sed -e 's/##source=VariantFiltration/##source=VariantFiltration\n##reference=hg38.fasta/g' \
+         -e 's/\tEND/\tSVTYPE=CNV;END/g' \
+   | bgzip -o vcfs/${SAMPLE}.cnv.vcf.gz \
+   && tabix vcfs/${SAMPLE}.cnv.vcf.gz
 
 echo "All done!"
