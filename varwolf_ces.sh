@@ -29,34 +29,34 @@ DBSNP="/lustre/imgge/db/hg38/hg38.dbsnp155.vcf.gz"
 INTERVALS="${WDIR}/refs/TruSight_One_TargetedRegions_v1.1.hg38.bed"
 
 mkdir -p \
-    output/${COHORT}/bams/metrics \
-    output/${COHORT}/vcfs \
-    output/${COHORT}/counts
+  output/${COHORT}/bams/metrics \
+  output/${COHORT}/vcfs \
+  output/${COHORT}/counts
 
 ### START ###
 
 for SAMPLE in "${SAMPLES[@]}"
 do
-    for LANE in {1..4}
-    do
-        FLOWCELL=$(zcat "${WDIR}"/fastq/${SAMPLE}*L001_R1*.fastq.gz | head -1 | cut -d ":" -f 3)
-        LIBRARY=$(zcat ${WDIR}/fastq/${SAMPLE}*L001_R1*.fastq.gz | head -1 | cut -d ":" -f 2 | sed 's/^/Lib/g')
-        fastp \
-		    -w 1 \
-	        -i ${WDIR}/fastq/${SAMPLE}*L00${LANE}_R1*.fastq.gz \
-            -I ${WDIR}/fastq/${SAMPLE}*L00${LANE}_R2*.fastq.gz \
-            --stdout \
-            -j ${WDIR}/output/${COHORT}/fastp.json \
-            -h ${WDIR}/output/${COHORT}/fastp.html \
-        | bwa mem \
-		    -t 2 \
-		    -M -p \
-            -R "@RG\tID:${FLOWCELL}.LANE${LANE}\tPL:ILLUMINA\tLB:${LIBRARY}\tSM:${SAMPLE}" \
-            ${REF} - \
-        | samtools sort \
-		    -@ 1 \
-            > ${WDIR}/output/${COHORT}/bams/${SAMPLE}_L${LANE}.bam
-    done &
+  for LANE in {1..4}
+  do
+    FLOWCELL=$(zcat "${WDIR}"/fastq/${SAMPLE}*L001_R1*.fastq.gz | head -1 | cut -d ":" -f 3)
+    LIBRARY=$(zcat ${WDIR}/fastq/${SAMPLE}*L001_R1*.fastq.gz | head -1 | cut -d ":" -f 2 | sed 's/^/Lib/g')
+    fastp \
+		  -w 1 \
+	    -i ${WDIR}/fastq/${SAMPLE}*L00${LANE}_R1*.fastq.gz \
+      -I ${WDIR}/fastq/${SAMPLE}*L00${LANE}_R2*.fastq.gz \
+      --stdout \
+      -j ${WDIR}/output/${COHORT}/fastp.json \
+      -h ${WDIR}/output/${COHORT}/fastp.html \
+    | bwa mem \
+		  -t 2 \
+		  -M -p \
+      -R "@RG\tID:${FLOWCELL}.LANE${LANE}\tPL:ILLUMINA\tLB:${LIBRARY}\tSM:${SAMPLE}" \
+      ${REF} - \
+    | samtools sort \
+		  -@ 1 \
+    > ${WDIR}/output/${COHORT}/bams/${SAMPLE}_L${LANE}.bam
+  done &
 done
 
 wait
@@ -65,12 +65,12 @@ echo "Finished mapping reads!"
 
 for SAMPLE in "${SAMPLES[@]}"
 do
-    BAMSHARDS=$(ls ${WDIR}/output/${COHORT}/bams/${SAMPLE}_L* | sed -e 's/^/ -I /g')
-    gatk MarkDuplicates \
-	    -R ${REF} \
-	    ${BAMSHARDS} \
-	    -O ${WDIR}/output/${COHORT}/bams/${SAMPLE}_dd.bam \
-	    -M ${WDIR}/output/${COHORT}/bams/metrics/${SAMPLE}_mdmetrics.txt &
+  BAMSHARDS=$(ls ${WDIR}/output/${COHORT}/bams/${SAMPLE}_L* | sed -e 's/^/ -I /g')
+  gatk MarkDuplicates \
+	  -R ${REF} \
+	  ${BAMSHARDS} \
+	  -O ${WDIR}/output/${COHORT}/bams/${SAMPLE}_dd.bam \
+	  -M ${WDIR}/output/${COHORT}/bams/metrics/${SAMPLE}_mdmetrics.txt &
 done
 
 wait
@@ -79,22 +79,22 @@ echo "Finished marking duplicates!"
 
 for SAMPLE in "${SAMPLES[@]}"
 do
-    gatk BaseRecalibrator \
-	    -R ${REF} \
-	    -I ${WDIR}/output/${COHORT}/bams/${SAMPLE}_dd.bam \
-	    -O ${WDIR}/output/${COHORT}/bams/metrics/${SAMPLE}_bqsr.report \
-	    --known-sites ${DBSNP} &
+  gatk BaseRecalibrator \
+	  -R ${REF} \
+	  -I ${WDIR}/output/${COHORT}/bams/${SAMPLE}_dd.bam \
+	  -O ${WDIR}/output/${COHORT}/bams/metrics/${SAMPLE}_bqsr.report \
+	  --known-sites ${DBSNP} &
 done
 
 wait
 
 for SAMPLE in "${SAMPLES[@]}"
 do
-    gatk ApplyBQSR \
-	    -R ${REF} \
-	    -I ${WDIR}/output/${COHORT}/bams/${SAMPLE}_dd.bam \
-	    -O ${WDIR}/output/${COHORT}/bams/${SAMPLE}.bam \
-        --bqsr ${WDIR}/output/${COHORT}/bams/metrics/${SAMPLE}_bqsr.report &
+  gatk ApplyBQSR \
+	  -R ${REF} \
+	  -I ${WDIR}/output/${COHORT}/bams/${SAMPLE}_dd.bam \
+	  -O ${WDIR}/output/${COHORT}/bams/${SAMPLE}.bam \
+    --bqsr ${WDIR}/output/${COHORT}/bams/metrics/${SAMPLE}_bqsr.report &
 done
 
 wait
@@ -103,12 +103,12 @@ echo "Finished recalibrating bases!"
 
 for SAMPLE in "${SAMPLES[@]}"
 do
-    gatk HaplotypeCaller \
-	    -R ${REF} \
-        -L ${INTERVALS} \
-        -ip 10 \
-	    -I ${WDIR}/output/${COHORT}/bams/${SAMPLE}.bam \
-        -O ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_raw.vcf.gz &
+  gatk HaplotypeCaller \
+	  -R ${REF} \
+    -L ${INTERVALS} \
+    -ip 10 \
+	  -I ${WDIR}/output/${COHORT}/bams/${SAMPLE}.bam \
+    -O ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_raw.vcf.gz &
 done
 
 wait
@@ -117,17 +117,17 @@ echo "Finished calling variants!"
 
 for SAMPLE in "${SAMPLES[@]}"
 do
-    gatk VariantFiltration \
-	    -V ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_raw.vcf.gz \
-        -filter "DP < 5.0" --filter-name "DP5" \
-        -filter "QD < 2.0" --filter-name "QD2" \
-        -filter "QUAL < 30.0" --filter-name "QUAL30" \
-        -filter "SOR > 3.0" --filter-name "SOR3" \
-        -filter "FS > 60.0" --filter-name "FS60" \
-        -filter "MQ < 40.0" --filter-name "MQ40" \
-        -filter "MQRankSum < -12.5" --filter-name "MQRankSum-12.5" \
-        -filter "ReadPosRankSum < -8.0" --filter-name "ReadPosRankSum-8" \
-        -O ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.vcf.gz &
+  gatk VariantFiltration \
+	  -V ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_raw.vcf.gz \
+    -filter "DP < 5.0" --filter-name "DP5" \
+    -filter "QD < 2.0" --filter-name "QD2" \
+    -filter "QUAL < 30.0" --filter-name "QUAL30" \
+    -filter "SOR > 3.0" --filter-name "SOR3" \
+    -filter "FS > 60.0" --filter-name "FS60" \
+    -filter "MQ < 40.0" --filter-name "MQ40" \
+    -filter "MQRankSum < -12.5" --filter-name "MQRankSum-12.5" \
+    -filter "ReadPosRankSum < -8.0" --filter-name "ReadPosRankSum-8" \
+    -O ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.vcf.gz &
 done
 
 wait
@@ -136,22 +136,22 @@ echo "Finished filtering variants!"
 
 for SAMPLE in "${SAMPLES[@]}"
 do
-    zcat ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.vcf.gz \
-    | sed 's/##source=HaplotypeCaller/##source=HaplotypeCaller\n##reference=hg38.fasta/g' \
-    | bgzip -@ 2 -o ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.vcf.gz
-    tabix ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.vcf.gz
+  zcat ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.vcf.gz \
+  | sed 's/##source=HaplotypeCaller/##source=HaplotypeCaller\n##reference=hg38.fasta/g' \
+  | bgzip -@ 2 -o ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.vcf.gz
+  tabix ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.vcf.gz
 done
 
 echo "Done with SNVs!"
 
 for SAMPLE in "${SAMPLES[@]}"
 do
-    gatk CollectReadCounts \
-        -R ${REF} \
-        -L ${WDIR}/refs/read_counts_ces.interval_list \
-        -imr OVERLAPPING_ONLY \
-        -I ${WDIR}/output/${COHORT}/bams/${SAMPLE}.bam \
-        -O ${WDIR}/output/${COHORT}/counts/${SAMPLE}.hdf5 &
+  gatk CollectReadCounts \
+    -R ${REF} \
+    -L ${WDIR}/refs/read_counts_ces.interval_list \
+    -imr OVERLAPPING_ONLY \
+    -I ${WDIR}/output/${COHORT}/bams/${SAMPLE}.bam \
+    -O ${WDIR}/output/${COHORT}/counts/${SAMPLE}.hdf5 &
 done
 
 wait
@@ -250,11 +250,11 @@ echo "Finished filtering CNV calls"
 
 for SAMPLE in "${SAMPLES[@]}"
 do
-    zgrep -P -v "CNVQUAL|N\t\." ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
-    | sed -e 's/##source=VariantFiltration/##source=VariantFiltration\n##reference=hg38.fasta/g' \
-        -e 's/\tEND/\tSVTYPE=CNV;END/g' \
-    | bgzip -o ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.cnv.vcf.gz
-    tabix ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.cnv.vcf.gz
+  zgrep -P -v "CNVQUAL|N\t\." ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
+  | sed -e 's/##source=VariantFiltration/##source=VariantFiltration\n##reference=hg38.fasta/g' \
+    -e 's/\tEND/\tSVTYPE=CNV;END/g' \
+  | bgzip -o ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.cnv.vcf.gz
+  tabix ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.cnv.vcf.gz
 done
 
 echo "Done with CNVs!"

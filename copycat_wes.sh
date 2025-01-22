@@ -27,9 +27,9 @@ DBSNP="/lustre/imgge/db/hg38/hg38.dbsnp155.vcf.gz"
 INTERVALS="${WDIR}/refs/hg38_Twist_ILMN_Exome_2.0_Plus_Panel_Combined_Mito.bed"
 
 mkdir -p \
-    output/${COHORT}/bams/metrics \
-    output/${COHORT}/vcfs \
-    output/${COHORT}/counts
+  output/${COHORT}/bams/metrics \
+  output/${COHORT}/vcfs \
+  output/${COHORT}/counts
 
 ### START ###
 
@@ -38,12 +38,12 @@ conda activate gatk
 
 for SAMPLE in "${SAMPLES[@]}"
 do
-    gatk CollectReadCounts \
-        -R ${REF} \
-        -L ${WDIR}/refs/read_counts_wes.interval_list \
-        -imr OVERLAPPING_ONLY \
-        -I ${WDIR}/bams/${SAMPLE}.bam \
-        -O ${WDIR}/output/${COHORT}/counts/${SAMPLE}.hdf5 &
+  gatk CollectReadCounts \
+    -R ${REF} \
+    -L ${WDIR}/refs/read_counts_wes.interval_list \
+    -imr OVERLAPPING_ONLY \
+    -I ${WDIR}/bams/${SAMPLE}.bam \
+    -O ${WDIR}/output/${COHORT}/counts/${SAMPLE}.hdf5 &
 done
 
 wait
@@ -139,15 +139,15 @@ echo "Finished filtering CNV calls"
 
 for SAMPLE in "${SAMPLES[@]}"
 do
-    zgrep -P -v "CNVQUAL|N\t\." ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
-    | sed -e 's/##source=VariantFiltration/##source=VariantFiltration\n##reference=hg38.fasta/g' \
-        -e 's/\tEND/\tSVTYPE=CNV;END/g' \
-    | bgzip -o ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.cnv.vcf.gz
-    tabix ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.cnv.vcf.gz
+  zgrep -P -v "CNVQUAL|N\t\." ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
+  | sed -e 's/##source=VariantFiltration/##source=VariantFiltration\n##reference=hg38.fasta/g' \
+    -e 's/\tEND/\tSVTYPE=CNV;END/g' \
+  | bgzip -o ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.cnv.vcf.gz
+  tabix ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.cnv.vcf.gz
 done
 
 echo "Done with CNVs!"
 
-# rm ${WDIR}/output/${COHORT}/bams/*_* ${WDIR}/output/${COHORT}/vcfs/*_*
+rm ${WDIR}/output/${COHORT}/bams/*_* ${WDIR}/output/${COHORT}/vcfs/*_*
 
 echo "All Done!"
