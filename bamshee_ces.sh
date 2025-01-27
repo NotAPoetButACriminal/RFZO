@@ -49,8 +49,9 @@ do
 		-M -p -R "@RG\tID:${FLOWCELL}.LANE${i}\tPL:${PLATFORM}\tLB:${LIBRARY}\tSM:${SAMPLE}" \
         ${REF} - \
     | samtools sort \
-		-@ $((THREADS / 4)) \
+		-@ $((THREADS / 4)) -n \
         > bams/${SAMPLE}_L${i}.bam
+	BAMSHARDS+=$(echo -n "-I ${WDIR}/bams/${SAMPLE}_L${i}.bam ")
 done
 
 echo "Finished aligning ${SAMPLE}"
