@@ -203,10 +203,8 @@ do
     -O ${WDIR}/output/${COHORT}/gcnvcaller_scatters \
     --output-prefix scatter_${SCATTER} \
     --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls \
-    --verbosity DEBUG &
+    --verbosity DEBUG
 done
-
-wait
 
 echo "Finished calling CNVs per scatter"
 
