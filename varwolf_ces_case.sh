@@ -34,7 +34,6 @@ mkdir -p \
 
 ### START ###
 
-
 for LANE in {1..4}
 do
   FLOWCELL=$(zcat "${WDIR}"/input/${SAMPLE}*L001_R1*.fastq.gz | head -1 | cut -d ":" -f 3)
@@ -121,11 +120,11 @@ echo "Finished counting reads!"
 eval "$(conda shell.bash hook)"
 conda activate gatk
 
-SCATTERS=$(basename ${WDIR}/output/TSO250108/interval_scatters/temp_0001_of_* \
+SCATTERS=$(basename ${WDIR}/output/TSO250117/interval_scatters/temp_0001_of_* \
   | cut -d "_" -f 4)
 
 gatk DetermineGermlineContigPloidy \
-  --model ${WDIR}/output/TSO250108/ploidy-model/ \
+  --model ${WDIR}/output/TSO250117/ploidy-model/ \
   -I ${WDIR}/output/${SAMPLE}/counts/${SAMPLE}.hdf5 \
   -O ${WDIR}/output/${SAMPLE}/ \
   --output-prefix ploidy
@@ -136,7 +135,7 @@ for SCATTER in $(seq -w 0001 00${SCATTERS})
 do
   gatk GermlineCNVCaller \
     --run-mode CASE \
-    --model ${WDIR}/output/TSO250108/gcnvcaller_scatters/scatter_${SCATTER}-model \
+    --model ${WDIR}/output/TSO250117/gcnvcaller_scatters/scatter_${SCATTER}-model \
     -I ${WDIR}/output/${SAMPLE}/counts/${SAMPLE}.hdf5 \
     -O ${WDIR}/output/${SAMPLE}/gcnvcaller_scatters \
     --output-prefix scatter_${SCATTER} \
@@ -146,9 +145,9 @@ done
 
 echo "Finished calling CNVs per scatter"
 
-MODELS=$(ls -p ${WDIR}/output/TSO250108/gcnvcaller_scatters/ \
+MODELS=$(ls -p ${WDIR}/output/TSO250117/gcnvcaller_scatters/ \
   | grep model \
-  | sed "s#^#--model-shard-path ${WDIR}/output/TSO250108/gcnvcaller_scatters/#g")
+  | sed "s#^#--model-shard-path ${WDIR}/output/TSO250117/gcnvcaller_scatters/#g")
 CALLS=$(ls -p ${WDIR}/output/${SAMPLE}/gcnvcaller_scatters/ \
   | grep calls \
   | sed "s#^#--calls-shard-path ${WDIR}/output/${SAMPLE}/gcnvcaller_scatters/#g")
