@@ -51,7 +51,7 @@ do
     -R "@RG\tID:${FLOWCELL}.LANE${LANE}\tPL:ILLUMINA\tLB:${LIBRARY}\tSM:${SAMPLE}" \
     ${REF} - \
   | samtools sort \
-	  -@ 4 \
+	  -@ 4 -n\
   > ${WDIR}/output/${SAMPLE}/bams/${SAMPLE}_L${LANE}.bam
 done
 
