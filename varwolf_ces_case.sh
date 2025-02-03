@@ -36,12 +36,12 @@ mkdir -p \
 
 for LANE in {1..4}
 do
-  FLOWCELL=$(zcat "${WDIR}"/input/${SAMPLE}*L001_R1*.fastq.gz | head -1 | cut -d ":" -f 3)
-  LIBRARY=$(zcat ${WDIR}/input/${SAMPLE}*L001_R1*.fastq.gz | head -1 | cut -d ":" -f 2 | sed 's/^/Lib/g')
+  FLOWCELL=$(zcat "${WDIR}"/input/${SAMPLE}_*L001_R1*.fastq.gz | head -1 | cut -d ":" -f 3)
+  LIBRARY=$(zcat ${WDIR}/input/${SAMPLE}_*L001_R1*.fastq.gz | head -1 | cut -d ":" -f 2 | sed 's/^/Lib/g')
   fastp \
     -w 4 \
-    -i ${WDIR}/input/${SAMPLE}*L00${LANE}_R1*.fastq.gz \
-    -I ${WDIR}/input/${SAMPLE}*L00${LANE}_R2*.fastq.gz \
+    -i ${WDIR}/input/${SAMPLE}_*L00${LANE}_R1*.fastq.gz \
+    -I ${WDIR}/input/${SAMPLE}_*L00${LANE}_R2*.fastq.gz \
     --stdout \
     -j ${WDIR}/output/${SAMPLE}/fastp.json \
     -h ${WDIR}/output/${SAMPLE}/fastp.html \
