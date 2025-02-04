@@ -3,9 +3,18 @@
 #SBATCH -J varwolf_ces
 #SBATCH --output /lustre/imgge/RFZO/logs/%x_%A.out
 #SBATCH --nodes 1
-#SBATCH --cpus-per-task 100
+#SBATCH --cpus-per-task 128
 #SBATCH --mem 256G
 #SBATCH --time 3-00:00:00
+
+# This is a script that calls SNVs and CNVs for a cohort of Clinical Exome Sequencing samples.
+# It runs using slurm on 128 CPU threads and 256Gb of memory, ideally for ~48 samples.
+# It is designed to start with fastq files generated on the NextSeq 550 which are split into 4 lanes.
+# Place all the fastq files in the input directory and create a list of sample names.
+# Usage: sbatch varwolf_ces.sh <sample_names.txt> <cohort_name>
+# The output files will be in the output/cohort_name/ directory.
+
+# Loading slurm modules
 
 module load fastp
 module load bwa
