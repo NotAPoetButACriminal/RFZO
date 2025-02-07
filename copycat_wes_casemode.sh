@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#SBATCH -J copycat
+#SBATCH -J copycat_wes_case
 #SBATCH --output /lustre/imgge/RFZO/logs/%x_%A.out
 #SBATCH --nodes 1
 #SBATCH --cpus-per-task 128
@@ -24,59 +24,73 @@ gatk CollectReadCounts \
   -R ${REF} \
   -L ${WDIR}/refs/read_counts_wes.interval_list \
   -imr OVERLAPPING_ONLY \
-  -I ${WDIR}/bams/${SAMPLE}.bam \
-  -O ${WDIR}/counts/${SAMPLE}.hdf5
+  -I ${WDIR}/output/${SAMPLE}/bams/${SAMPLE}.bam \
+  -O ${WDIR}/output/${SAMPLE}/counts/${SAMPLE}.hdf5
 
-mkdir -p counts/${SAMPLE}/
+echo "Finished counting reads!"
+
+SCATTERS=$(basename ${WDIR}/output/WES250203/interval_scatters/temp_0001_of_* \
+  | cut -d "_" -f 4)
 
 gatk DetermineGermlineContigPloidy \
-  --model counts/WES04112024/WES04112024_ploidy-model \
-  -I ${WDIR}/counts/${SAMPLE}.hdf5 \
-  -O ${WDIR}/counts/${SAMPLE} \
-  --output-prefix ${SAMPLE}_ploidy
+  --model ${WDIR}/output/WES250203/ploidy-model/ \
+  -I ${WDIR}/output/${SAMPLE}/counts/${SAMPLE}.hdf5 \
+  -O ${WDIR}/output/${SAMPLE}/ \
+  --output-prefix ploidy
 
-for SCATTER in {0001..0020}
+echo "Finished determining ploidy!"
+
+for SCATTER in $(seq -w 0001 00${SCATTERS})
 do
   gatk GermlineCNVCaller \
-    --run-mode CASE  \
-    --model counts/WES04112024/WES04112024_scatters/WES04112024_scatter_${SCATTER}-model \
-    -I ${WDIR}/counts/${SAMPLE}.hdf5 \
-    -O ${WDIR}/counts/${SAMPLE}/${SAMPLE}_scatters/ \
-    --output-prefix ${SAMPLE}_scatter_${SCATTER} \
-    --contig-ploidy-calls ${WDIR}/counts/${SAMPLE}/${SAMPLE}_ploidy-calls \
-    --verbosity DEBUG &
+    --run-mode CASE \
+    --model ${WDIR}/output/WES250203/gcnvcaller_scatters/scatter_${SCATTER}-model \
+    -I ${WDIR}/output/${SAMPLE}/counts/${SAMPLE}.hdf5 \
+    -O ${WDIR}/output/${SAMPLE}/gcnvcaller_scatters \
+    --output-prefix scatter_${SCATTER} \
+    --contig-ploidy-calls ${WDIR}/output/${SAMPLE}/ploidy-calls \
+    --verbosity DEBUG
 done
 
-wait
+echo "Finished calling CNVs per scatter"
 
-MODELS=$(ls -p ${WDIR}/counts/WES04112024/WES04112024_scatters/ \
+MODELS=$(ls -p ${WDIR}/output/WES250203/gcnvcaller_scatters/ \
   | grep model \
-  | sed "s#^#--model-shard-path ${WDIR}/counts/WES04112024/WES04112024_scatters/#g")
-CALLS=$(ls -p ${WDIR}/counts/${SAMPLE}/${SAMPLE}_scatters/ \
+  | sed "s#^#--model-shard-path ${WDIR}/output/WES250203/gcnvcaller_scatters/#g")
+CALLS=$(ls -p ${WDIR}/output/${SAMPLE}/gcnvcaller_scatters/ \
   | grep calls \
-  | sed "s#^#--calls-shard-path ${WDIR}/counts/${SAMPLE}/${SAMPLE}_scatters/#g")
+  | sed "s#^#--calls-shard-path ${WDIR}/output/${SAMPLE}/gcnvcaller_scatters/#g")
+
 
 gatk PostprocessGermlineCNVCalls \
+  $MODELS \
+  $CALLS \
   --sample-index 0 \
-  --allosomal-contig chrX \
-  --allosomal-contig chrY \
-  --output-genotyped-intervals ${WDIR}/vcfs/${SAMPLE}_intervals.cnv.vcf.gz \
-  --output-genotyped-segments ${WDIR}/vcfs/${SAMPLE}_raw.cnv.vcf.gz \
-  --output-denoised-copy-ratios ${WDIR}/counts/${SAMPLE}/${SAMPLE}_denoised_copy_ratios.tsv \
-  --contig-ploidy-calls ${WDIR}/counts/${SAMPLE}/${SAMPLE}_ploidy-calls \
-  ${MODELS} \
-  ${CALLS}
+  --output-genotyped-intervals ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}_intervals.cnv.vcf.gz \
+  --output-genotyped-segments ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}_raw.cnv.vcf.gz \
+  --output-denoised-copy-ratios ${WDIR}/output/${SAMPLE}/gcnvcaller_scatters/${SAMPLE}_denoised_copy_ratios.tsv \
+  --contig-ploidy-calls ${WDIR}/output/${SAMPLE}/ploidy-calls/ \
+  --allosomal-contig chrX --allosomal-contig chrY \
+  --sequence-dictionary ${WDIR}/refs/hg38.dict
+
+echo "Finished calling CNVs per sample"
 
 gatk VariantFiltration \
-  -V ${WDIR}/vcfs/${SAMPLE}_raw.cnv.vcf.gz \
+  -V ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}_raw.cnv.vcf.gz \
   -filter "QUAL < 30.0" \
   --filter-name "CNVQUAL" \
-  -O ${WDIR}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz
+  -O ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz
 
-zcat ${WDIR}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
+echo "Finished filtering CNV calls"
+
+zgrep -P -v "CNVQUAL|N\t\." ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
   | sed -e 's/##source=VariantFiltration/##source=VariantFiltration\n##reference=hg38.fasta/g' \
-  -e 's/\tEND/\tSVTYPE=CNV;END/g' \
-  | bgzip -o vcfs/${SAMPLE}.cnv.vcf.gz \
-  && tabix vcfs/${SAMPLE}.cnv.vcf.gz
+    -e 's/\tEND/\tSVTYPE=CNV;END/g' \
+  | bgzip -o ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}.cnv.vcf.gz
+tabix ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}.cnv.vcf.gz
 
-echo "All done!"
+echo "Done with CNVs!"
+
+rm ${WDIR}/output/${SAMPLE}/bams/*_* ${WDIR}/output/${SAMPLE}/vcfs/*_*
+
+echo "All Done!"
