@@ -29,7 +29,7 @@ gatk CollectReadCounts \
   -R ${REF} \
   -L ${WDIR}/refs/read_counts_wes.interval_list \
   -imr OVERLAPPING_ONLY \
-  -I ${WDIR}/input/${SAMPLE}/bams/${SAMPLE}.bam \
+  -I ${WDIR}/input/${SAMPLE}.bam \
   -O ${WDIR}/output/${SAMPLE}/counts/${SAMPLE}.hdf5
 
 echo "Finished counting reads!"
