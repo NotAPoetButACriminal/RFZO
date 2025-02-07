@@ -17,6 +17,11 @@ SAMPLE=$1
 WDIR="/lustre/imgge/RFZO"
 REF=$WDIR/refs/hg38.fasta
 
+mkdir -p \
+  output/${SAMPLE}/bams/metrics \
+  output/${SAMPLE}/vcfs \
+  output/${SAMPLE}/counts
+
 eval "$(conda shell.bash hook)"
 conda activate gatk
 
@@ -24,7 +29,7 @@ gatk CollectReadCounts \
   -R ${REF} \
   -L ${WDIR}/refs/read_counts_wes.interval_list \
   -imr OVERLAPPING_ONLY \
-  -I ${WDIR}/output/${SAMPLE}/bams/${SAMPLE}.bam \
+  -I ${WDIR}/input/${SAMPLE}/bams/${SAMPLE}.bam \
   -O ${WDIR}/output/${SAMPLE}/counts/${SAMPLE}.hdf5
 
 echo "Finished counting reads!"
