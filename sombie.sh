@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#SBATCH -J varwolf_ces
+#SBATCH -J sombie
 #SBATCH --output /lustre/imgge/RFZO/logs/%x_%A.out
 #SBATCH --nodes 1
 #SBATCH --cpus-per-task 32
@@ -23,13 +23,12 @@ THREADS=${SLURM_CPUS_PER_TASK}
 
 # REFERENCE VARIABLES
 REF="${WDIR}/refs/hg38.fasta"
-DBSNP="/lustre/imgge/db/hg38/hg38.dbsnp155.vcf.gz"
-INTERVALS="${WDIR}/refs/TruSight_One_TargetedRegions_v1.1.hg38.bed"
+INTERVALS="${WDIR}/refs/sample3_depth_intervals.bed"
 
 mkdir -p \
-  output/${SAMPLE}/bams/metrics \
-  output/${SAMPLE}/vcfs \
-  output/${SAMPLE}/counts
+  ${WDIR}/output/${SAMPLE}/bams/metrics \
+  ${WDIR}/output/${SAMPLE}/vcfs/metrics \
+  ${WDIR}/output/${SAMPLE}/counts
 
 ### START ###
 
@@ -52,7 +51,7 @@ do
     -R "@RG\tID:${FLOWCELL}.LANE${LANE}\tPL:ILLUMINA\tLB:${LIBRARY}\tSM:${SAMPLE}" \
     ${REF} - \
   | samtools sort \
-    -@ 4 -n\
+    -@ 4 -n \
   > ${WDIR}/output/${SAMPLE}/bams/${SAMPLE}_L${LANE}.bam
 done
 
@@ -73,11 +72,22 @@ gatk BQSRPipelineSpark \
   -R ${REF} \
   -I ${WDIR}/output/${SAMPLE}/bams/${SAMPLE}_dd.bam \
   -O ${WDIR}/output/${SAMPLE}/bams/${SAMPLE}.bam \
-  --known-sites ${DBSNP} \
+  --known-sites /lustre/imgge/db/hg38/hg38.dbsnp155.vcf.gz \
   --spark-runner LOCAL \
   --spark-master local[${THREADS}]
 
 echo "Finished recalibrating bases!"
+
+gatk GetPileupSummaries \
+  -I ${WDIR}/output/${SAMPLE}/bams/${SAMPLE}.bam \
+  -O ${WDIR}/output/${SAMPLE}/vcfs/metrics/pileup.table \
+  -V ${WDIR}/refs/gatk_af-only-gnomad.hg38.vcf.gz \
+  -L ${WDIR}/refs/gatk_af-only-gnomad-common-biallelic.vcf.gz
+
+gatk CalculateContamination \
+  -I ${WDIR}/output/${SAMPLE}/vcfs/metrics/pileup.table \
+  -O ${WDIR}/output/${SAMPLE}/vcfs/metrics/contamination.table \
+  -segments ${WDIR}/output/${SAMPLE}/vcfs/metrics/segments.table
 
 gatk Mutect2 \
   -R ${REF} \
@@ -92,11 +102,16 @@ gatk Mutect2 \
   --disable-read-filter MateOnSameContigOrNoMappedMateReadFilter \
   --native-pair-hmm-threads ${THREADS}
 
+gakt LearnReadOrientationModel \
+  -I ${WDIR}/output/${SAMPLE}/vcfs/metrics/f1r2.tar.gz \
+  -O ${WDIR}/output/${SAMPLE}/vcfs/metrics/orientation_model.tar.gz
+
 gatk FilterMutectCalls \
   -R ${REF} \
-  -V ${WDIR}/output/SAMPLE5/vcfs/SAMPLE5_raw.vcf.gz \
-  --contamination-table ${WDIR}/output/SAMPLE5/vcfs/metrics/SAMPLE5_contamination.table \
-  --tumor-segmentation ${WDIR}/output/SAMPLE5/vcfs/metrics/SAMPLE5_segments.table \
-  -O ${WDIR}/output/SAMPLE5/vcfs/SAMPLE5_filtered.vcf.gz
+  -V ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}_raw.vcf.gz \
+  -O ${WDIR}/output/SAMPLE5/vcfs/${SAMPLE}.vcf.gz \
+  --contamination-table ${WDIR}/output/${SAMPLE}/vcfs/metrics/contamination.table \
+  --tumor-segmentation ${WDIR}/output/${SAMPLE}/vcfs/metrics/segments.table \
+  --ob-priors ${WDIR}/output/${SAMPLE}/vcfs/metrics/orientation_model.tar.gz
 
 rm ${WDIR}/output/${SAMPLE}/bams/*_*
