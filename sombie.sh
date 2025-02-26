@@ -51,7 +51,7 @@ do
     -R "@RG\tID:${FLOWCELL}.LANE${LANE}\tPL:ILLUMINA\tLB:${LIBRARY}\tSM:${SAMPLE}" \
     ${REF} - \
   | samtools sort \
-    -@ 4 -n \s
+    -@ 4 -n \
   > ${WDIR}/output/${SAMPLE}/bams/${SAMPLE}_L${LANE}.bam
 done
 
@@ -62,7 +62,7 @@ gatk MarkDuplicatesSpark \
   -R ${REF} \
   ${BAMSHARDS} \
   -O ${WDIR}/output/${SAMPLE}/bams/${SAMPLE}_dd.bam \
-  -M ${WDIR}/output/${SAMPLE}/bams/metrics/${SAMPLE}_mdmetrics.txt \
+  -M ${WDIR}/output/${SAMPLE}/bams/metrics/mdmetrics.txt \
   --spark-runner LOCAL \
   --spark-master local[${THREADS}]
 
