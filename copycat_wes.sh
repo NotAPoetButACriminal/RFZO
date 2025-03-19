@@ -85,13 +85,14 @@ echo "Finished calling CNVs per scatter"
 
 for i in $(seq 0 $((${#SAMPLES[@]} -1)))
 do 
+  SAMPLE=$(cat ${WDIR}/output/${COHORT}/gcnvcaller/${COHORT}-calls/SAMPLE_${i}/sample_name.txt)
   gatk PostprocessGermlineCNVCalls \
     --model-shard-path ${WDIR}/output/${COHORT}/gcnvcaller/${COHORT}-model/ \
     --calls-shard-path ${WDIR}/output/${COHORT}/gcnvcaller/${COHORT}-calls/ \
     --sample-index ${i} \
-    --output-genotyped-intervals ${WDIR}/output/${COHORT}/vcfs/${SAMPLES[${i}]}_intervals.cnv.vcf.gz \
-    --output-genotyped-segments ${WDIR}/output/${COHORT}/vcfs/${SAMPLES[${i}]}_raw.cnv.vcf.gz \
-    --output-denoised-copy-ratios ${WDIR}/output/${COHORT}/gcnvcaller/${SAMPLES[${i}]}_denoised_copy_ratios.tsv \
+    --output-genotyped-intervals ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_intervals.cnv.vcf.gz \
+    --output-genotyped-segments ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_raw.cnv.vcf.gz \
+    --output-denoised-copy-ratios ${WDIR}/output/${COHORT}/gcnvcaller/${SAMPLE}_denoised_copy_ratios.tsv \
     --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls/ \
     --allosomal-contig chrX --allosomal-contig chrY \
     --sequence-dictionary ${WDIR}/refs/hg38.dict &
@@ -124,6 +125,6 @@ done
 
 echo "Done with CNVs!"
 
-rm ${WDIR}/output/${COHORT}/bams/*_* ${WDIR}/output/${COHORT}/vcfs/*_*
+rm ${WDIR}/output/${COHORT}/vcfs/*_*
 
 echo "All Done!"
