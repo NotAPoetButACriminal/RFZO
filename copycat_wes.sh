@@ -83,7 +83,7 @@ conda activate gatk
 
 # echo "Finished calling CNVs per scatter"
 
-for i in $(seq 0 $((${#SAMPLES[@]} -1)))
+for i in $(seq 0 $((${#SAMPLES[@]} -2)))
 do 
   SAMPLE=$(cat ${WDIR}/output/${COHORT}/gcnvcaller/${COHORT}-calls/SAMPLE_${i}/sample_name.txt)
   gatk PostprocessGermlineCNVCalls \
