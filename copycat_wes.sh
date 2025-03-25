@@ -36,54 +36,54 @@ mkdir -p \
 eval "$(conda shell.bash hook)"
 conda activate gatk
 
-# for SAMPLE in "${SAMPLES[@]}"
-# do
-#   gatk CollectReadCounts \
-#     -R ${REF} \
-#     -L ${WDIR}/refs/read_counts_wes.interval_list \
-#     -imr OVERLAPPING_ONLY \
-#     -I ${WDIR}/input/${SAMPLE}.bam \
-#     -O ${WDIR}/output/${COHORT}/counts/${SAMPLE}.hdf5 &
-# done
+for SAMPLE in "${SAMPLES[@]}"
+do
+  gatk CollectReadCounts \
+    -R ${REF} \
+    -L ${WDIR}/refs/read_counts_wes.interval_list \
+    -imr OVERLAPPING_ONLY \
+    -I ${WDIR}/input/${SAMPLE}.bam \
+    -O ${WDIR}/output/${COHORT}/counts/${SAMPLE}.hdf5 &
+done
 
-# wait
+wait
 
-# echo "Finished counting reads!"
+echo "Finished counting reads!"
 
-# HDF5S=$(ls ${WDIR}/output/${COHORT}/counts/*.hdf5 | sed -e 's/^/ -I /g')
+HDF5S=$(ls ${WDIR}/output/${COHORT}/counts/*.hdf5 | sed -e 's/^/ -I /g')
 
-# gatk FilterIntervals \
-#   -L ${WDIR}/refs/read_counts_wes.interval_list \
-#   --annotated-intervals ${WDIR}/refs/read_counts_wes_annotated.interval_list \
-#   -imr OVERLAPPING_ONLY \
-#   $HDF5S \
-#   -O ${WDIR}/output/${COHORT}/filtered.interval_list \
-#   --low-count-filter-percentage-of-samples 65
+gatk FilterIntervals \
+  -L ${WDIR}/refs/read_counts_wes.interval_list \
+  --annotated-intervals ${WDIR}/refs/read_counts_wes_annotated.interval_list \
+  -imr OVERLAPPING_ONLY \
+  $HDF5S \
+  -O ${WDIR}/output/${COHORT}/filtered.interval_list \
+  --low-count-filter-percentage-of-samples 65
 
-# gatk DetermineGermlineContigPloidy \
-#   -L ${WDIR}/output/${COHORT}/filtered.interval_list \
-#   -imr OVERLAPPING_ONLY \
-#   $HDF5S \
-#   -O ${WDIR}/output/${COHORT}/ \
-#   --output-prefix ploidy \
-#   --contig-ploidy-priors ${WDIR}/refs/contig_ploidy_priors.tsv
+gatk DetermineGermlineContigPloidy \
+  -L ${WDIR}/output/${COHORT}/filtered.interval_list \
+  -imr OVERLAPPING_ONLY \
+  $HDF5S \
+  -O ${WDIR}/output/${COHORT}/ \
+  --output-prefix ploidy \
+  --contig-ploidy-priors ${WDIR}/refs/contig_ploidy_priors.tsv
 
-# echo "Finished determining ploidy!"
+echo "Finished determining ploidy!"
 
-# gatk GermlineCNVCaller \
-#   --run-mode COHORT \
-#   -L ${WDIR}/output/${COHORT}/filtered.interval_list \
-#   --annotated-intervals ${WDIR}/refs/read_counts_wes_annotated.interval_list \
-#   -imr OVERLAPPING_ONLY \
-#   $HDF5S \
-#   -O ${WDIR}/output/${COHORT}/gcnvcaller \
-#   --output-prefix ${COHORT} \
-#   --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls \
-#   --verbosity DEBUG
+gatk GermlineCNVCaller \
+  --run-mode COHORT \
+  -L ${WDIR}/output/${COHORT}/filtered.interval_list \
+  --annotated-intervals ${WDIR}/refs/read_counts_wes_annotated.interval_list \
+  -imr OVERLAPPING_ONLY \
+  $HDF5S \
+  -O ${WDIR}/output/${COHORT}/gcnvcaller \
+  --output-prefix ${COHORT} \
+  --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls \
+  --verbosity DEBUG
 
-# echo "Finished calling CNVs per scatter"
+echo "Finished calling CNVs per scatter"
 
-for i in $(seq 0 $((${#SAMPLES[@]} -2)))
+for i in $(seq 0 $((${#SAMPLES[@]} - 1)))
 do 
   SAMPLE=$(cat ${WDIR}/output/${COHORT}/gcnvcaller/${COHORT}-calls/SAMPLE_${i}/sample_name.txt)
   gatk PostprocessGermlineCNVCalls \
