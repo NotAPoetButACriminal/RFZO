@@ -182,6 +182,6 @@ tabix ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}.cnv.vcf.gz
 
 echo "Done with CNVs!"
 
-rm ${WDIR}/output/${SAMPLE}/bams/*_* ${WDIR}/output/${SAMPLE}/vcfs/*_*
+rm ${WDIR}/output/${SAMPLE}/vcfs/*_*
 
 echo "All Done!"
