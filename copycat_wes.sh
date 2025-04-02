@@ -106,7 +106,7 @@ CALLS=$(ls -p ${WDIR}/output/${COHORT}/gcnvcaller_scatters/ \
 
 for i in $(seq 0 $((${#SAMPLES[@]} -1)))
 do
-  SAMPLE=$(cat ${WDIR}/output/${COHORT}/gcnvcaller_scatters/${COHORT}-calls/SAMPLE_${i}/sample_name.txt)
+  SAMPLE=$(cat ${WDIR}/output/${COHORT}/gcnvcaller_scatters/scatter_0001-calls/SAMPLE_${i}/sample_name.txt)
   gatk PostprocessGermlineCNVCalls \
     $MODELS \
     $CALLS \
