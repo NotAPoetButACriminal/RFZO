@@ -36,66 +36,66 @@ mkdir -p \
 eval "$(conda shell.bash hook)"
 conda activate gatk
 
-for SAMPLE in "${SAMPLES[@]}"
-do
-  gatk CollectReadCounts \
-    -R ${REF} \
-    -L ${WDIR}/refs/read_counts_wes.interval_list \
-    -imr OVERLAPPING_ONLY \
-    -I ${WDIR}/input/${SAMPLE}.bam \
-    -O ${WDIR}/output/${COHORT}/counts/${SAMPLE}.hdf5 &
-done
+# for SAMPLE in "${SAMPLES[@]}"
+# do
+#   gatk CollectReadCounts \
+#     -R ${REF} \
+#     -L ${WDIR}/refs/read_counts_wes.interval_list \
+#     -imr OVERLAPPING_ONLY \
+#     -I ${WDIR}/input/${SAMPLE}.bam \
+#     -O ${WDIR}/output/${COHORT}/counts/${SAMPLE}.hdf5 &
+# done
 
-wait
+# wait
 
-echo "Finished counting reads!"
+# echo "Finished counting reads!"
 
-HDF5S=$(ls ${WDIR}/output/${COHORT}/counts/*.hdf5 | sed -e 's/^/ -I /g')
+# HDF5S=$(ls ${WDIR}/output/${COHORT}/counts/*.hdf5 | sed -e 's/^/ -I /g')
 
-gatk FilterIntervals \
-  -L ${WDIR}/refs/read_counts_wes.interval_list \
-  --annotated-intervals ${WDIR}/refs/read_counts_wes_annotated.interval_list \
-  -imr OVERLAPPING_ONLY \
-  $HDF5S \
-  -O ${WDIR}/output/${COHORT}/filtered.interval_list \
-  --low-count-filter-percentage-of-samples 65
+# gatk FilterIntervals \
+#   -L ${WDIR}/refs/read_counts_wes.interval_list \
+#   --annotated-intervals ${WDIR}/refs/read_counts_wes_annotated.interval_list \
+#   -imr OVERLAPPING_ONLY \
+#   $HDF5S \
+#   -O ${WDIR}/output/${COHORT}/filtered.interval_list \
+#   --low-count-filter-percentage-of-samples 65
 
-gatk IntervalListTools \
-  -I ${WDIR}/output/${COHORT}/filtered.interval_list  \
-  -O ${WDIR}/output/${COHORT}/interval_scatters \
-  --SUBDIVISION_MODE INTERVAL_COUNT \
-  --SCATTER_CONTENT 13000
+# gatk IntervalListTools \
+#   -I ${WDIR}/output/${COHORT}/filtered.interval_list  \
+#   -O ${WDIR}/output/${COHORT}/interval_scatters \
+#   --SUBDIVISION_MODE INTERVAL_COUNT \
+#   --SCATTER_CONTENT 13000
 
-SCATTERS=$(basename ${WDIR}/output/${COHORT}/interval_scatters/temp_0001_of_* \
-  | cut -d "_" -f 4)
+# SCATTERS=$(basename ${WDIR}/output/${COHORT}/interval_scatters/temp_0001_of_* \
+#   | cut -d "_" -f 4)
 
-echo "Finished scattering intervals!"
+# echo "Finished scattering intervals!"
 
-gatk DetermineGermlineContigPloidy \
-  -L ${WDIR}/output/${COHORT}/filtered.interval_list \
-  -imr OVERLAPPING_ONLY \
-  $HDF5S \
-  -O ${WDIR}/output/${COHORT}/ \
-  --output-prefix ploidy \
-  --contig-ploidy-priors ${WDIR}/refs/contig_ploidy_priors.tsv
+# gatk DetermineGermlineContigPloidy \
+#   -L ${WDIR}/output/${COHORT}/filtered.interval_list \
+#   -imr OVERLAPPING_ONLY \
+#   $HDF5S \
+#   -O ${WDIR}/output/${COHORT}/ \
+#   --output-prefix ploidy \
+#   --contig-ploidy-priors ${WDIR}/refs/contig_ploidy_priors.tsv
 
-echo "Finished determining ploidy!"
+# echo "Finished determining ploidy!"
 
-for SCATTER in $(seq -w 0001 00${SCATTERS})
-do
-  gatk GermlineCNVCaller \
-    --run-mode COHORT \
-    -L ${WDIR}/output/${COHORT}/interval_scatters/temp_${SCATTER}_of_${SCATTERS}/scattered.interval_list \
-    --annotated-intervals ${WDIR}/refs/read_counts_wes_annotated.interval_list \
-    -imr OVERLAPPING_ONLY \
-    $HDF5S \
-    -O ${WDIR}/output/${COHORT}/gcnvcaller_scatters \
-    --output-prefix scatter_${SCATTER} \
-    --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls \
-    --verbosity DEBUG
-done
+# for SCATTER in $(seq -w 0001 00${SCATTERS})
+# do
+#   gatk GermlineCNVCaller \
+#     --run-mode COHORT \
+#     -L ${WDIR}/output/${COHORT}/interval_scatters/temp_${SCATTER}_of_${SCATTERS}/scattered.interval_list \
+#     --annotated-intervals ${WDIR}/refs/read_counts_wes_annotated.interval_list \
+#     -imr OVERLAPPING_ONLY \
+#     $HDF5S \
+#     -O ${WDIR}/output/${COHORT}/gcnvcaller_scatters \
+#     --output-prefix scatter_${SCATTER} \
+#     --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls \
+#     --verbosity DEBUG
+# done
 
-echo "Finished calling CNVs per scatter"
+# echo "Finished calling CNVs per scatter"
 
 MODELS=$(ls -p ${WDIR}/output/${COHORT}/gcnvcaller_scatters/ \
   | grep model \
@@ -106,14 +106,14 @@ CALLS=$(ls -p ${WDIR}/output/${COHORT}/gcnvcaller_scatters/ \
 
 for i in $(seq 0 $((${#SAMPLES[@]} -1)))
 do
-  SAMPLE=$(cat ${WDIR}/output/${COHORT}/gcnvcaller/${COHORT}-calls/SAMPLE_${i}/sample_name.txt)
+  SAMPLE=$(cat ${WDIR}/output/${COHORT}/gcnvcaller_scatters/${COHORT}-calls/SAMPLE_${i}/sample_name.txt)
   gatk PostprocessGermlineCNVCalls \
     $MODELS \
     $CALLS \
     --sample-index ${i} \
     --output-genotyped-intervals ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_intervals.cnv.vcf.gz \
     --output-genotyped-segments ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_raw.cnv.vcf.gz \
-    --output-denoised-copy-ratios ${WDIR}/output/${COHORT}/gcnvcaller/${SAMPLE}_denoised_copy_ratios.tsv \
+    --output-denoised-copy-ratios ${WDIR}/output/${COHORT}/gcnvcaller_scatters/${SAMPLE}_denoised_copy_ratios.tsv \
     --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls/ \
     --allosomal-contig chrX --allosomal-contig chrY \
     --sequence-dictionary ${WDIR}/refs/hg38.dict &
