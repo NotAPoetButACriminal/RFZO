@@ -225,14 +225,15 @@ CALLS=$(ls -p ${WDIR}/output/${COHORT}/gcnvcaller_scatters/ \
   | sed "s#^#--calls-shard-path ${WDIR}/output/${COHORT}/gcnvcaller_scatters/#g")
 
 for i in $(seq 0 $((${#SAMPLES[@]} -1)))
-do 
+do
+  SAMPLE=$(cat ${WDIR}/output/${COHORT}/gcnvcaller_scatters/scatter_0001-calls/SAMPLE_${i}/sample_name.txt)
   gatk PostprocessGermlineCNVCalls \
     $MODELS \
     $CALLS \
     --sample-index ${i} \
-    --output-genotyped-intervals ${WDIR}/output/${COHORT}/vcfs/${SAMPLES[${i}]}_intervals.cnv.vcf.gz \
-    --output-genotyped-segments ${WDIR}/output/${COHORT}/vcfs/${SAMPLES[${i}]}_raw.cnv.vcf.gz \
-    --output-denoised-copy-ratios ${WDIR}/output/${COHORT}/gcnvcaller_scatters/${SAMPLES[${i}]}_denoised_copy_ratios.tsv \
+    --output-genotyped-intervals ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_intervals.cnv.vcf.gz \
+    --output-genotyped-segments ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_raw.cnv.vcf.gz \
+    --output-denoised-copy-ratios ${WDIR}/output/${COHORT}/gcnvcaller_scatters/${SAMPLE}_denoised_copy_ratios.tsv \
     --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls/ \
     --allosomal-contig chrX --allosomal-contig chrY \
     --sequence-dictionary ${WDIR}/refs/hg38.dict &
