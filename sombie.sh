@@ -23,7 +23,7 @@ THREADS=${SLURM_CPUS_PER_TASK}
 
 # REFERENCE VARIABLES
 REF="${WDIR}/refs/hg38.fasta"
-INTERVALS="${WDIR}/refs/sample3_depth_intervals.bed"
+INTERVALS="${WDIR}/refs/avenio_hg38.bed"
 
 mkdir -p \
   ${WDIR}/output/${SAMPLE}/bams/metrics \
@@ -78,6 +78,13 @@ gatk BQSRPipelineSpark \
 
 echo "Finished recalibrating bases!"
 
+gatk CollectReadCounts \
+  -R ${REF} \
+  -L ${WDIR}/refs/read_counts_avenio.interval_list \
+  -imr OVERLAPPING_ONLY \
+  -I ${WDIR}/output/${SAMPLE}/bams/${SAMPLE}.bam \
+  -O ${WDIR}/output/${SAMPLE}/counts/${SAMPLE}.hdf5
+
 gatk GetPileupSummaries \
   -I ${WDIR}/output/${SAMPLE}/bams/${SAMPLE}.bam \
   -O ${WDIR}/output/${SAMPLE}/vcfs/metrics/pileup.table \
@@ -94,8 +101,8 @@ gatk Mutect2 \
   --panel-of-normals ${WDIR}/refs/gatk_1000g_pon.hg38.vcf.gz \
   --germline-resource ${WDIR}/refs/gatk_af-only-gnomad.hg38.vcf.gz \
   --af-of-alleles-not-in-resource 0.0000025 \
-  -L ${WDIR}/refs/sample3_depth_intervals.bed \
-  -ip 50 \
+  -L ${INTERVALS} \
+  -ip 100 \
   -I ${WDIR}/output/${SAMPLE}/bams/${SAMPLE}.bam \
   -O ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}_raw.vcf.gz \
   --f1r2-tar-gz ${WDIR}/output/${SAMPLE}/vcfs/metrics/f1r2.tar.gz \
