@@ -48,7 +48,7 @@ for SAMPLE in "${SAMPLES[@]}"
 do
   for LANE in {1..4}
   do
-    FLOWCELL=$(zcat "${WDIR}"/input/${SAMPLE}_*L001_R1*.fastq.gz | head -1 | cut -d ":" -f 3)
+    (FLOWCELL=$(zcat "${WDIR}"/input/${SAMPLE}_*L001_R1*.fastq.gz | head -1 | cut -d ":" -f 3)
     LIBRARY=$(zcat ${WDIR}/input/${SAMPLE}_*L001_R1*.fastq.gz | head -1 | cut -d ":" -f 2 | sed 's/^/Lib/g')
     fastp \
 		  -w 1 \
@@ -64,24 +64,22 @@ do
       ${REF} - \
     | samtools sort \
 		  -@ 1 \
-    > ${WDIR}/output/${COHORT}/bams/${SAMPLE}_L${LANE}.bam
+    > ${WDIR}/output/${COHORT}/bams/${SAMPLE}_L${LANE}.bam)
   done &
 done
-
 wait
 
 echo "Finished mapping reads!"
 
 for SAMPLE in "${SAMPLES[@]}"
 do
-  BAMSHARDS=$(ls ${WDIR}/output/${COHORT}/bams/${SAMPLE}_L* | sed -e 's/^/ -I /g')
+  (BAMSHARDS=$(ls ${WDIR}/output/${COHORT}/bams/${SAMPLE}_L* | sed -e 's/^/ -I /g')
   gatk MarkDuplicates \
 	  -R ${REF} \
 	  ${BAMSHARDS} \
 	  -O ${WDIR}/output/${COHORT}/bams/${SAMPLE}_dd.bam \
-	  -M ${WDIR}/output/${COHORT}/bams/metrics/${SAMPLE}_mdmetrics.txt &
+	  -M ${WDIR}/output/${COHORT}/bams/metrics/${SAMPLE}_mdmetrics.txt) &
 done
-
 wait
 
 echo "Finished marking duplicates!"
@@ -94,7 +92,6 @@ do
 	  -O ${WDIR}/output/${COHORT}/bams/metrics/${SAMPLE}_bqsr.report \
 	  --known-sites ${DBSNP} &
 done
-
 wait
 
 for SAMPLE in "${SAMPLES[@]}"
@@ -105,7 +102,6 @@ do
 	  -O ${WDIR}/output/${COHORT}/bams/${SAMPLE}.bam \
     --bqsr ${WDIR}/output/${COHORT}/bams/metrics/${SAMPLE}_bqsr.report &
 done
-
 wait
 
 echo "Finished recalibrating bases!"
@@ -119,7 +115,6 @@ do
 	  -I ${WDIR}/output/${COHORT}/bams/${SAMPLE}.bam \
     -O ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_raw.vcf.gz &
 done
-
 wait
 
 echo "Finished calling variants!"
@@ -138,7 +133,6 @@ do
     -filter "ReadPosRankSum < -8.0" --filter-name "ReadPosRankSum-8" \
     -O ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.vcf.gz &
 done
-
 wait
 
 echo "Finished filtering variants!"
@@ -162,7 +156,6 @@ do
     -I ${WDIR}/output/${COHORT}/bams/${SAMPLE}.bam \
     -O ${WDIR}/output/${COHORT}/counts/${SAMPLE}.hdf5 &
 done
-
 wait
 
 echo "Finished counting reads!"
@@ -180,16 +173,16 @@ gatk FilterIntervals \
   -O ${WDIR}/output/${COHORT}/filtered.interval_list \
   --low-count-filter-percentage-of-samples 65
 
-gatk IntervalListTools \
-  -I ${WDIR}/output/${COHORT}/filtered.interval_list  \
-  -O ${WDIR}/output/${COHORT}/interval_scatters \
-  --SUBDIVISION_MODE INTERVAL_COUNT \
-  --SCATTER_CONTENT 3000
+# gatk IntervalListTools \
+#   -I ${WDIR}/output/${COHORT}/filtered.interval_list  \
+#   -O ${WDIR}/output/${COHORT}/interval_scatters \
+#   --SUBDIVISION_MODE INTERVAL_COUNT \
+#   --SCATTER_CONTENT 3000
 
-SCATTERS=$(basename ${WDIR}/output/${COHORT}/interval_scatters/temp_0001_of_* \
-  | cut -d "_" -f 4)
+# SCATTERS=$(basename ${WDIR}/output/${COHORT}/interval_scatters/temp_0001_of_* \
+#   | cut -d "_" -f 4)
 
-echo "Finished scattering intervals!"
+# echo "Finished scattering intervals!"
 
 gatk DetermineGermlineContigPloidy \
   -L ${WDIR}/output/${COHORT}/filtered.interval_list \
@@ -201,44 +194,70 @@ gatk DetermineGermlineContigPloidy \
 
 echo "Finished determining ploidy!"
 
-for SCATTER in $(seq -w 0001 00${SCATTERS})
-do
-  gatk GermlineCNVCaller \
-    --run-mode COHORT \
-    -L ${WDIR}/output/${COHORT}/interval_scatters/temp_${SCATTER}_of_${SCATTERS}/scattered.interval_list \
-    --annotated-intervals ${WDIR}/refs/read_counts_ces_annotated.interval_list \
-    -imr OVERLAPPING_ONLY \
-    $HDF5S \
-    -O ${WDIR}/output/${COHORT}/gcnvcaller_scatters \
-    --output-prefix scatter_${SCATTER} \
-    --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls \
-    --verbosity DEBUG
-done
+# for SCATTER in $(seq -w 0001 00${SCATTERS})
+# do
+#   gatk GermlineCNVCaller \
+#     --run-mode COHORT \
+#     -L ${WDIR}/output/${COHORT}/interval_scatters/temp_${SCATTER}_of_${SCATTERS}/scattered.interval_list \
+#     --annotated-intervals ${WDIR}/refs/read_counts_ces_annotated.interval_list \
+#     -imr OVERLAPPING_ONLY \
+#     $HDF5S \
+#     -O ${WDIR}/output/${COHORT}/gcnvcaller_scatters \
+#     --output-prefix scatter_${SCATTER} \
+#     --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls \
+#     --verbosity DEBUG
+# done
+
+gatk GermlineCNVCaller \
+  --run-mode COHORT \
+  -L ${WDIR}/output/${COHORT}/filtered.interval_list\
+  --annotated-intervals ${WDIR}/refs/read_counts_ces_annotated.interval_list \
+  -imr OVERLAPPING_ONLY \
+  $HDF5S \
+  -O ${WDIR}/output/${COHORT}/gcnvcaller \
+  --output-prefix ${COHORT} \
+  --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls \
+  --verbosity DEBUG
 
 echo "Finished calling CNVs per scatter"
 
-MODELS=$(ls -p ${WDIR}/output/${COHORT}/gcnvcaller_scatters/ \
-  | grep model \
-  | sed "s#^#--model-shard-path ${WDIR}/output/${COHORT}/gcnvcaller_scatters/#g")
-CALLS=$(ls -p ${WDIR}/output/${COHORT}/gcnvcaller_scatters/ \
-  | grep calls \
-  | sed "s#^#--calls-shard-path ${WDIR}/output/${COHORT}/gcnvcaller_scatters/#g")
+# MODELS=$(ls -p ${WDIR}/output/${COHORT}/gcnvcaller_scatters/ \
+#   | grep model \
+#   | sed "s#^#--model-shard-path ${WDIR}/output/${COHORT}/gcnvcaller_scatters/#g")
+# CALLS=$(ls -p ${WDIR}/output/${COHORT}/gcnvcaller_scatters/ \
+#   | grep calls \
+#   | sed "s#^#--calls-shard-path ${WDIR}/output/${COHORT}/gcnvcaller_scatters/#g")
+
+# for i in $(seq 0 $((${#SAMPLES[@]} -1)))
+# do
+#   SAMPLE=$(cat ${WDIR}/output/${COHORT}/gcnvcaller_scatters/scatter_0001-calls/SAMPLE_${i}/sample_name.txt)
+#   gatk PostprocessGermlineCNVCalls \
+#     $MODELS \
+#     $CALLS \
+#     --sample-index ${i} \
+#     --output-genotyped-intervals ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_intervals.cnv.vcf.gz \
+#     --output-genotyped-segments ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_raw.cnv.vcf.gz \
+#     --output-denoised-copy-ratios ${WDIR}/output/${COHORT}/gcnvcaller_scatters/${SAMPLE}_denoised_copy_ratios.tsv \
+#     --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls/ \
+#     --allosomal-contig chrX --allosomal-contig chrY \
+#     --sequence-dictionary ${WDIR}/refs/hg38.dict &
+# done
+#wait
 
 for i in $(seq 0 $((${#SAMPLES[@]} -1)))
 do
-  SAMPLE=$(cat ${WDIR}/output/${COHORT}/gcnvcaller_scatters/scatter_0001-calls/SAMPLE_${i}/sample_name.txt)
+  (SAMPLE=$(cat ${WDIR}/output/${COHORT}/gcnvcaller/${COHORT}-calls/SAMPLE_${i}/sample_name.txt)
   gatk PostprocessGermlineCNVCalls \
-    $MODELS \
-    $CALLS \
+    --model-shard-path ${WDIR}/output/${COHORT}/gcnvcaller/${COHORT}-model \
+    --calls-shard-path ${WDIR}/output/${COHORT}/gcnvcaller/${COHORT}-calls \
     --sample-index ${i} \
     --output-genotyped-intervals ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_intervals.cnv.vcf.gz \
     --output-genotyped-segments ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_raw.cnv.vcf.gz \
-    --output-denoised-copy-ratios ${WDIR}/output/${COHORT}/gcnvcaller_scatters/${SAMPLE}_denoised_copy_ratios.tsv \
+    --output-denoised-copy-ratios ${WDIR}/output/${COHORT}/gcnvcaller/${SAMPLE}_denoised_copy_ratios.tsv \
     --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls/ \
     --allosomal-contig chrX --allosomal-contig chrY \
-    --sequence-dictionary ${WDIR}/refs/hg38.dict &
+    --sequence-dictionary ${WDIR}/refs/hg38.dict) &
 done
-
 wait
 
 echo "Finished calling CNVs per sample"
@@ -247,20 +266,18 @@ for SAMPLE in "${SAMPLES[@]}"
 do
   gatk VariantFiltration \
     -V ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_raw.cnv.vcf.gz \
-    -filter "QUAL < 30.0" \
-    --filter-name "CNVQUAL" \
+    -filter "QUAL < 100.0" --filter-name "CNVQUAL" \
+    -filter "QUAL < 30.0" --filter-name "CNVRMV" \
     -O ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz &
 done
-
 wait
 
 echo "Finished filtering CNV calls"
 
 for SAMPLE in "${SAMPLES[@]}"
 do
-  zgrep -P -v "CNVQUAL|N\t\." ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
-  | sed -e 's/##source=VariantFiltration/##source=VariantFiltration\n##reference=hg38.fasta/g' \
-    -e 's/\tEND/\tSVTYPE=CNV;END/g' \
+  zgrep -P -v "CNVRMV|N\t\." ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
+  | sed 's/\tEND/\tSVTYPE=CNV;END/g' \
   | bgzip -o ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.cnv.vcf.gz
   tabix ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.cnv.vcf.gz
 done
