@@ -241,7 +241,7 @@ for SAMPLE in "${SAMPLES[@]}"
 do
   (configManta.py \
     --referenceFasta ${REF} \
-    --callRegions ${INTERVALS} \
+    --callRegions refs/TruSight_One_manta.bed.gz \
     --bam ${WDIR}/output/${COHORT}/bams/${SAMPLE}.bam \
     --runDir ${WDIR}/output/${COHORT}/manta/${SAMPLE}/ \
     --exome
