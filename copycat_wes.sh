@@ -64,7 +64,7 @@ gatk IntervalListTools \
   -I ${WDIR}/output/${COHORT}/filtered.interval_list  \
   -O ${WDIR}/output/${COHORT}/interval_scatters \
   --SUBDIVISION_MODE INTERVAL_COUNT \
-  --SCATTER_CONTENT 13000
+  --SCATTER_CONTENT 26000
 
 SCATTERS=$(basename ${WDIR}/output/${COHORT}/interval_scatters/temp_0001_of_* \
   | cut -d "_" -f 4)
@@ -92,8 +92,9 @@ do
     -O ${WDIR}/output/${COHORT}/gcnvcaller_scatters \
     --output-prefix scatter_${SCATTER} \
     --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls \
-    --verbosity DEBUG
+    --verbosity DEBUG &
 done
+wait
 
 echo "Finished calling CNVs per scatter"
 
@@ -106,7 +107,7 @@ CALLS=$(ls -p ${WDIR}/output/${COHORT}/gcnvcaller_scatters/ \
 
 for i in $(seq 0 $((${#SAMPLES[@]} -1)))
 do
-  SAMPLE=$(cat ${WDIR}/output/${COHORT}/gcnvcaller_scatters/scatter_0001-calls/SAMPLE_${i}/sample_name.txt)
+  (SAMPLE=$(cat ${WDIR}/output/${COHORT}/gcnvcaller_scatters/scatter_0001-calls/SAMPLE_${i}/sample_name.txt)
   gatk PostprocessGermlineCNVCalls \
     $MODELS \
     $CALLS \
@@ -116,9 +117,8 @@ do
     --output-denoised-copy-ratios ${WDIR}/output/${COHORT}/gcnvcaller_scatters/${SAMPLE}_denoised_copy_ratios.tsv \
     --contig-ploidy-calls ${WDIR}/output/${COHORT}/ploidy-calls/ \
     --allosomal-contig chrX --allosomal-contig chrY \
-    --sequence-dictionary ${WDIR}/refs/hg38.dict &
+    --sequence-dictionary ${WDIR}/refs/hg38.dict) &
 done
-
 wait
 
 echo "Finished calling CNVs per sample"
@@ -131,7 +131,6 @@ do
     --filter-name "CNVQUAL" \
     -O ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz &
 done
-
 wait
 
 echo "Finished filtering CNV calls"
@@ -146,6 +145,24 @@ do
 done
 
 echo "Done with CNVs!"
+
+for SAMPLE in "${SAMPLES[@]}"
+do
+  (configManta.py \
+    --referenceFasta ${REF} \
+    --callRegions refs/wes_manta.bed.gz \
+    --bam ${WDIR}/input/${SAMPLE}.bam \
+    --runDir ${WDIR}/output/${COHORT}/manta/${SAMPLE}/ \
+    --exome
+    ${WDIR}/output/${COHORT}/manta/${SAMPLE}/runWorkflow.py -j 2
+    mv ${WDIR}/output/${COHORT}/manta/${SAMPLE}/results/variants/diploidSV.vcf.gz \
+      ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.sv.vcf.gz
+    mv ${WDIR}/output/${COHORT}/manta/${SAMPLE}/results/variants/diploidSV.vcf.gz.tbi \
+      ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.sv.vcf.gz.tbi) &
+done
+wait
+
+echo "Done with SVs!"
 
 rm ${WDIR}/output/${COHORT}/vcfs/*_*
 

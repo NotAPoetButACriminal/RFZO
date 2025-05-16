@@ -241,7 +241,7 @@ for SAMPLE in "${SAMPLES[@]}"
 do
   (configManta.py \
     --referenceFasta ${REF} \
-    --callRegions refs/TruSight_One_manta.bed.gz \
+    --callRegions refs/ces_manta.bed.gz \
     --bam ${WDIR}/output/${COHORT}/bams/${SAMPLE}.bam \
     --runDir ${WDIR}/output/${COHORT}/manta/${SAMPLE}/ \
     --exome
@@ -252,6 +252,8 @@ do
       ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.sv.vcf.gz.tbi) &
 done
 wait
+
+echo "Done with SVs!"
 
 rm ${WDIR}/output/${COHORT}/bams/*_* ${WDIR}/output/${COHORT}/vcfs/*_*
 
