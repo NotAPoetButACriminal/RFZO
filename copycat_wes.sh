@@ -10,6 +10,7 @@
 module load samtools
 module load gatk
 module load miniconda3
+modula load manta
 
 set -ex
 
@@ -127,8 +128,8 @@ for SAMPLE in "${SAMPLES[@]}"
 do
   gatk VariantFiltration \
     -V ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_raw.cnv.vcf.gz \
-    -filter "QUAL < 30.0" \
-    --filter-name "CNVQUAL" \
+    -filter "QUAL < 100.0" --filter-name "CNVQUAL" \
+    -filter "QUAL < 30.0" --filter-name "CNVRMV" \
     -O ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz &
 done
 wait
@@ -137,9 +138,8 @@ echo "Finished filtering CNV calls"
 
 for SAMPLE in "${SAMPLES[@]}"
 do
-  zgrep -P -v "CNVQUAL|N\t\." ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
-  | sed -e 's/##source=VariantFiltration/##source=VariantFiltration\n##reference=hg38.fasta/g' \
-    -e 's/\tEND/\tSVTYPE=CNV;END/g' \
+  zgrep -P -v "CNVRMV|N\t\." ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
+  | sed 's/\tEND/\tSVTYPE=CNV;END/g' \
   | bgzip -o ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.cnv.vcf.gz
   tabix ${WDIR}/output/${COHORT}/vcfs/${SAMPLE}.cnv.vcf.gz
 done
