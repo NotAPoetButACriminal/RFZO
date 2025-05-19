@@ -184,6 +184,6 @@ mv ${WDIR}/output/${SAMPLE}/manta/results/variants/diploidSV.vcf.gz.tbi \
 
 echo "Done with SVs!"
 
-rm ${WDIR}/output/${SAMPLE}/vcfs/*_*
+rm ${WDIR}/output/${SAMPLE}/bams/*_* ${WDIR}/output/${SAMPLE}/vcfs/*_*
 
 echo "All Done!"
