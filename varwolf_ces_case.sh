@@ -155,13 +155,13 @@ echo "Finished processing CNVs"
 
 gatk VariantFiltration \
   -V ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}_raw.cnv.vcf.gz \
-  -filter "QUAL < 30.0" \
-  --filter-name "CNVQUAL" \
+  -filter "QUAL < 100.0" --filter-name "CNVQUAL" \
+  -filter "QUAL < 30.0" --filter-name "CNVRMV" \
   -O ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz
 
 echo "Finished filtering CNV calls"
 
-zgrep -P -v "CNVQUAL|N\t\." ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
+zgrep -P -v "CNVRMV|N\t\." ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
   | sed 's/\tEND/\tSVTYPE=CNV;END/g' \
   | bgzip -o ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}.cnv.vcf.gz
 tabix ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}.cnv.vcf.gz
