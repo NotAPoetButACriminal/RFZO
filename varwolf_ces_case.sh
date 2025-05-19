@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#SBATCH -J varwolf_ces
+#SBATCH -J varwolf_ces_case
 #SBATCH --output /lustre/imgge/RFZO/logs/%x_%A.out
 #SBATCH --nodes 1
 #SBATCH --cpus-per-task 32
@@ -12,6 +12,7 @@ module load bwa
 module load samtools
 module load gatk
 module load miniconda3
+module load manta
 
 set -ex
 
@@ -120,51 +121,37 @@ echo "Finished counting reads!"
 eval "$(conda shell.bash hook)"
 conda activate gatk
 
-SCATTERS=$(basename ${WDIR}/output/TSO250404/interval_scatters/temp_0001_of_* \
-  | cut -d "_" -f 4)
-
 gatk DetermineGermlineContigPloidy \
-  --model ${WDIR}/output/TSO250404/ploidy-model/ \
+  --model ${WDIR}/output/TSO250214/ploidy-model/ \
   -I ${WDIR}/output/${SAMPLE}/counts/${SAMPLE}.hdf5 \
   -O ${WDIR}/output/${SAMPLE}/ \
   --output-prefix ploidy
 
 echo "Finished determining ploidy!"
 
-for SCATTER in $(seq -w 0001 00${SCATTERS})
-do
-  gatk GermlineCNVCaller \
-    --run-mode CASE \
-    --model ${WDIR}/output/TSO250404/gcnvcaller_scatters/scatter_${SCATTER}-model \
-    -I ${WDIR}/output/${SAMPLE}/counts/${SAMPLE}.hdf5 \
-    -O ${WDIR}/output/${SAMPLE}/gcnvcaller_scatters \
-    --output-prefix scatter_${SCATTER} \
-    --contig-ploidy-calls ${WDIR}/output/${SAMPLE}/ploidy-calls \
-    --verbosity DEBUG
-done
+gatk GermlineCNVCaller \
+  --run-mode CASE \
+  --model ${WDIR}/output/TSO250214/gcnvcaller/TSO250214-model \
+  -I ${WDIR}/output/${SAMPLE}/counts/${SAMPLE}.hdf5 \
+  -O ${WDIR}/output/${SAMPLE}/gcnvcaller \
+  --output-prefix ${SAMPLE} \
+  --contig-ploidy-calls ${WDIR}/output/${SAMPLE}/ploidy-calls \
+  --verbosity DEBUG
 
-echo "Finished calling CNVs per scatter"
-
-MODELS=$(ls -p ${WDIR}/output/TSO250404/gcnvcaller_scatters/ \
-  | grep model \
-  | sed "s#^#--model-shard-path ${WDIR}/output/TSO250404/gcnvcaller_scatters/#g")
-CALLS=$(ls -p ${WDIR}/output/${SAMPLE}/gcnvcaller_scatters/ \
-  | grep calls \
-  | sed "s#^#--calls-shard-path ${WDIR}/output/${SAMPLE}/gcnvcaller_scatters/#g")
-
+echo "Finished calling CNVs"
 
 gatk PostprocessGermlineCNVCalls \
-  $MODELS \
-  $CALLS \
+  --model-shard-path ${WDIR}/output/TSO250214/gcnvcaller/TSO250214-model \
+  --calls-shard-path ${WDIR}/output/${SAMPLE}/gcnvcaller/${SAMPLE}-calls \
   --sample-index 0 \
   --output-genotyped-intervals ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}_intervals.cnv.vcf.gz \
   --output-genotyped-segments ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}_raw.cnv.vcf.gz \
-  --output-denoised-copy-ratios ${WDIR}/output/${SAMPLE}/gcnvcaller_scatters/${SAMPLE}_denoised_copy_ratios.tsv \
+  --output-denoised-copy-ratios ${WDIR}/output/${SAMPLE}/gcnvcaller/${SAMPLE}_denoised_copy_ratios.tsv \
   --contig-ploidy-calls ${WDIR}/output/${SAMPLE}/ploidy-calls/ \
   --allosomal-contig chrX --allosomal-contig chrY \
   --sequence-dictionary ${WDIR}/refs/hg38.dict
 
-echo "Finished calling CNVs per sample"
+echo "Finished processing CNVs"
 
 gatk VariantFiltration \
   -V ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}_raw.cnv.vcf.gz \
@@ -175,12 +162,27 @@ gatk VariantFiltration \
 echo "Finished filtering CNV calls"
 
 zgrep -P -v "CNVQUAL|N\t\." ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}_filtered.cnv.vcf.gz \
-  | sed -e 's/##source=VariantFiltration/##source=VariantFiltration\n##reference=hg38.fasta/g' \
-    -e 's/\tEND/\tSVTYPE=CNV;END/g' \
+  | sed 's/\tEND/\tSVTYPE=CNV;END/g' \
   | bgzip -o ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}.cnv.vcf.gz
 tabix ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}.cnv.vcf.gz
 
 echo "Done with CNVs!"
+
+configManta.py \
+  --referenceFasta ${REF} \
+  --callRegions refs/ces_manta.bed.gz \
+  --bam ${WDIR}/output/${SAMPLE}/bams/${SAMPLE}.bam \
+  --runDir ${WDIR}/output/${SAMPLE}/manta/ \
+  --exome
+  
+${WDIR}/output/${SAMPLE}/manta/runWorkflow.py -j 2
+
+mv ${WDIR}/output/${SAMPLE}/manta/results/variants/diploidSV.vcf.gz \
+  ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}.sv.vcf.gz
+mv ${WDIR}/output/${SAMPLE}/manta/results/variants/diploidSV.vcf.gz.tbi \
+  ${WDIR}/output/${SAMPLE}/vcfs/${SAMPLE}.sv.vcf.gz.tbi
+
+echo "Done with SVs!"
 
 rm ${WDIR}/output/${SAMPLE}/vcfs/*_*
 
