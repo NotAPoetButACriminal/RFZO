@@ -10,7 +10,7 @@
 module load samtools
 module load gatk
 module load miniconda3
-modula load manta
+module load manta
 
 set -ex
 
