@@ -38,7 +38,7 @@ mkdir -p \
 
 for LANE in {1..4}
 do
-  FLOWCELL=$(zcat "${WDIR}"/input/{SAMPLE}_*L001_R1*.fastq.gz \
+  (FLOWCELL=$(zcat "${WDIR}"/input/{SAMPLE}_*L001_R1*.fastq.gz \
     | head -1 \
     | cut -d ":" -f 3)
   LIBRARY=$(zcat ${WDIR}/input/${SAMPLE}_*L001_R1*.fastq.gz \
@@ -59,7 +59,7 @@ do
     ${REF} - \
   | samtools sort \
 	  -@ 4 -n\
-  > ${WDIR}/output/${COHORT}/${SAMPLE}/bams/${SAMPLE}_L${LANE}.bam
+  > ${WDIR}/output/${COHORT}/${SAMPLE}/bams/${SAMPLE}_L${LANE}.bam)
 done
 
 echo "Finished mapping reads!"
@@ -69,22 +69,22 @@ BAMSHARDS=$(ls ${WDIR}/output/${COHORT}/${SAMPLE}/bams/${SAMPLE}_L* \
 gatk MarkDuplicatesSpark \
   -R ${REF} \
   ${BAMSHARDS} \
-  -O ${WDIR}/output/${COHORT}/${SAMPLE}/bams/${SAMPLE}.bam \
+  -O ${WDIR}/output/${COHORT}/${SAMPLE}/bams/${SAMPLE}_dd.bam \
   -M ${WDIR}/output/${COHORT}/${SAMPLE}/bams/metrics/${SAMPLE}_mdmetrics.txt \
   --spark-runner LOCAL \
 	--spark-master local[${THREADS}]
 
 echo "Finished marking duplicates!"
 
-# gatk BQSRPipelineSpark \
-#   -R ${REF} \
-#   -I ${WDIR}/output/${COHORT}/${SAMPLE}/bams/${SAMPLE}_dd.bam \
-#   -O ${WDIR}/output/${COHORT}/${SAMPLE}/bams/${SAMPLE}.bam \
-#   --known-sites ${DBSNP} \
-#   --spark-runner LOCAL \
-# 	--spark-master local[${THREADS}]
+gatk BQSRPipelineSpark \
+  -R ${REF} \
+  -I ${WDIR}/output/${COHORT}/${SAMPLE}/bams/${SAMPLE}_dd.bam \
+  -O ${WDIR}/output/${COHORT}/${SAMPLE}/bams/${SAMPLE}.bam \
+  --known-sites ${DBSNP} \
+  --spark-runner LOCAL \
+	--spark-master local[${THREADS}]
 
-# echo "Finished recalibrating bases!"
+echo "Finished recalibrating bases!"
 
 gatk HaplotypeCaller \
   -R ${REF} \
@@ -173,10 +173,10 @@ configManta.py \
   --referenceFasta ${REF} \
   --callRegions refs/ces_manta.bed.gz \
   --bam ${WDIR}/output/${COHORT}/${SAMPLE}/bams/${SAMPLE}.bam \
-  --runDir ${WDIR}/output/${COHORT}/manta/ \
+  --runDir ${WDIR}/output/${COHORT}/${SAMPLE}/manta/ \
   --exome
   
-${WDIR}/output/${COHORT}/${SAMPLE}/manta/runWorkflow.py -j 2
+${WDIR}/output/${COHORT}/${SAMPLE}/manta/runWorkflow.py -j ${THREADS}
 
 mv ${WDIR}/output/${COHORT}/${SAMPLE}/manta/results/variants/diploidSV.vcf.gz \
   ${WDIR}/output/${COHORT}/${SAMPLE}/vcfs/${SAMPLE}.sv.vcf.gz
