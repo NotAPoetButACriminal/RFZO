@@ -55,6 +55,7 @@ HDF5S=$(ls ${WDIR}/output/${COHORT}/counts/*.hdf5 | sed -e 's/^/ -I /g')
 
 gatk FilterIntervals \
   -L ${WDIR}/refs/read_counts_wes.interval_list \
+  -XL ${WDIR}/refs/par.bed \
   --annotated-intervals ${WDIR}/refs/read_counts_wes_annotated.interval_list \
   -imr OVERLAPPING_ONLY \
   $HDF5S \
@@ -74,6 +75,7 @@ echo "Finished scattering intervals!"
 
 gatk DetermineGermlineContigPloidy \
   -L ${WDIR}/output/${COHORT}/filtered.interval_list \
+  -XL ${WDIR}/refs/par.bed \
   -imr OVERLAPPING_ONLY \
   $HDF5S \
   -O ${WDIR}/output/${COHORT}/ \
