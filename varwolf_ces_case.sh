@@ -150,6 +150,7 @@ gatk PostprocessGermlineCNVCalls \
   --output-denoised-copy-ratios ${WDIR}/output/${COHORT}/${SAMPLE}/gcnvcaller/${SAMPLE}_denoised_copy_ratios.tsv \
   --contig-ploidy-calls ${WDIR}/output/${COHORT}/${SAMPLE}/ploidy-calls/ \
   --allosomal-contig chrX --allosomal-contig chrY \
+  -XL ${WDIR}/refs/par.bed \
   --sequence-dictionary ${WDIR}/refs/hg38.dict
 
 echo "Finished processing CNVs"

@@ -168,6 +168,7 @@ HDF5S=$(ls ${WDIR}/output/${COHORT}/counts/*.hdf5 | sed -e 's/^/ -I /g')
 
 gatk FilterIntervals \
   -L ${WDIR}/refs/read_counts_ces.interval_list \
+  -XL ${WDIR}/refs/par.bed \
   --annotated-intervals ${WDIR}/refs/read_counts_ces_annotated.interval_list \
   -imr OVERLAPPING_ONLY \
   $HDF5S \
