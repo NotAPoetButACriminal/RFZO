@@ -35,7 +35,7 @@ mkdir -p \
 ### START ###
 
 eval "$(conda shell.bash hook)"
-conda activate gatk
+conda activate gcnv
 
 for SAMPLE in "${SAMPLES[@]}"
 do
