@@ -30,7 +30,7 @@ mkdir -p \
   output/${COHORT}/${SAMPLE}/counts
 
 eval "$(conda shell.bash hook)"
-conda activate gatk
+conda activate gcnv
 
 gatk CollectReadCounts \
   -R ${REF} \

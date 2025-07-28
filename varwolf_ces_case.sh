@@ -120,7 +120,7 @@ gatk CollectReadCounts \
 echo "Finished counting reads!"
 
 eval "$(conda shell.bash hook)"
-conda activate gatk
+conda activate gcnv
 
 gatk DetermineGermlineContigPloidy \
   --model ${WDIR}/output/TSO250214/ploidy-model/ \

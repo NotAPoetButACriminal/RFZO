@@ -162,7 +162,7 @@ wait
 echo "Finished counting reads!"
 
 eval "$(conda shell.bash hook)"
-conda activate gatk
+conda activate gcnv
 
 HDF5S=$(ls ${WDIR}/output/${COHORT}/counts/*.hdf5 | sed -e 's/^/ -I /g')
 
